@@ -2,6 +2,10 @@
 #include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
 
+#include "I2C.h"
+#include "FifoCamera.h"
+#include "Pins.h"
+
 #include <WebSocketsServer.h>
 #include <WebSockets.h>
 #include <WebSocketsClient.h>
@@ -37,6 +41,35 @@ bool toggleLed = 0;
  String header;                                             
 
 
+//******************** CAMERA SETTINGS *****************************
+
+I2C<SIOD, SIOC> i2c;
+FifoCamera<I2C<SIOD, SIOC>, RRST, WRST, RCK, WR, D0, D1, D2, D3, D4, D5, D6, D7> camera(i2c);
+
+//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST); this is commented since we arent using screens
+
+// resolution settings
+#define QQVGA
+//#define QQQVGA
+
+#ifdef QQVGA
+const int XRES = 160;
+const int YRES = 120;
+#endif
+
+#ifdef QQQVGA
+const int XRES = 80; 
+const int YRES = 60;
+#endif
+
+// frame size settings 
+const int BYTES_PER_PIXEL = 2;
+const int frameSize = XRES * YRES * BYTES_PER_PIXEL;
+unsigned char frame[frameSize];
+
+
+//******************************************************************
+
 // function to execute when interruption triggers
 void IRAM_ATTR onTimer() {
   portENTER_CRITICAL_ISR(&timerMux); // lock main thread for executing critical code
@@ -44,16 +77,17 @@ void IRAM_ATTR onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-BluetoothSerial SerialBT;
+//BluetoothSerial SerialBT;
 
 
 char webpage[] PROGMEM = R"=====(
 <html>
   <head>
     <script>
-      const ws;
+      
       const canvas = document.getElementById("mycanvas");
-      const ctx;
+      let ws;
+      let ctx;
       let ln;
 
       // initialize web socket
@@ -64,7 +98,7 @@ char webpage[] PROGMEM = R"=====(
           document.getElementById("rxConsole").value += event.data;
 
           let arraybuffer = event.data;
-          if (arraybuffer.byteLength == 1) {
+          /*if (arraybuffer.byteLength == 1) {
               flag  = new Uint8Array(event.data); // Start Flag
               if (flag == 0xAA) {
                  ln = 0;                   
@@ -87,8 +121,14 @@ char webpage[] PROGMEM = R"=====(
                  var bytearray = new Uint8Array(event.data);
                  display(bytearray, arraybuffer.byteLength, flag);
               }
-          }
+          }*/
         }
+
+        // websocket error handling
+        ws.onerror = function(event){
+          document.getElementById("msg").innerText = "Error: " + event.data;
+        }
+
 
         if(canvas.getContext){
           ctx = canvas.getContext('2d');
@@ -99,14 +139,15 @@ char webpage[] PROGMEM = R"=====(
       }
 
       // send text back to node
-      function sendText(String txt){
-        ws.send(txt);
-        //document.getElementById("txBar").value = "";
+      function sendText(){
+        ws.send("snap");
+        document.getElementById("msg").textContent= "msg sent";
+        document.getElementById("rxConsole").value = "";
         //document.getElementById("testmsg").value = "message sent";
       }
 
       // displaying image
-      function display(pixels, pixelcount, flag) {
+      /*function display(pixels, pixelcount, flag) {
         //alert('display'); 
         var i = 0;
         for(y=0; y < yres; y++) {
@@ -122,18 +163,16 @@ char webpage[] PROGMEM = R"=====(
          }
        }
 
-      // websocket error handling
-       ws.onerror = function(event){
-        document.getElementById("msg").innerText = "Error: " + event.data;
-       }
+      
     
         if (flag == 0xFF) { // last block
          ln = 0;        
          ctx.putImageData(imageData,0,0);
          ws.send("next-frame");    
        }    
-      }
+      }*/
 
+     
 
       
     </script>
@@ -145,9 +184,13 @@ char webpage[] PROGMEM = R"=====(
     <hr/>
     <div>
      
-     <canvas id="mycanvas" width="400" height="200" style="border:2px solid #000000;">
+     <canvas id="mycanvas" width="800" height="400" style="border:2px solid #000000;">
      </canvas>
      <p id="msg">camera offline</p> 
+    </div>
+    <div>
+      <!--<input type="text" id="txtBar" onkeydown="if(event.keyCode == 13) sendText();"/>-->
+      <button id="snap" onclick="sendText()">snap picture</button>
     </div>
     
     
@@ -161,30 +204,35 @@ char webpage[] PROGMEM = R"=====(
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
+    Serial.println("Initialization...");
+    i2c.init();
+    camera.init();
+
+    #ifdef QQVGA
+      camera.QQVGARGB565();
+    #endif
+    #ifdef QQQVGA 
+      camera.QQQVGARGB565();
+    #endif
+
+    pinMode(VSYNC, INPUT);
+    Serial.println("start");
+    //tft.initR(INITR_BLACKTAB);
+    //tft.fillScreen(0);
     
     // enable bluetooth with device name as argument 
-    SerialBT.begin("ESP32CTRL"); 
+    //SerialBT.begin("ESP32CTRL"); 
 
     pinMode(LED_BUILTIN, OUTPUT);
 
     connectToSavedNetwork();
-    /*getLastSavedCredentials(); // get details from last saved network
-    if(network != "---" && password != "---"){ // if we have connection details in store
-      char net[60];
-      network.toCharArray(net, 60);
-      if(password.length() > 0){
-        char pass[60];
-        password.toCharArray(pass,60);
-        WiFi.begin(net, pass);
-      } else WiFi.begin(net);
-
-      checkConnection(network,password);
-    }*/
-
+   
+    
     
     
 }
 
+// ***************** LOOP *********************************
 void loop() {
 
   if(interruptCounter > 0){
@@ -217,14 +265,48 @@ void loop() {
   }
 
 }
+// ***************** /LOOP *********************************
 
-// START OF WEB SERVER
+
+// ***************** CAPTURE PICTURE ******************************
+void snapPicture(){
+  while(!digitalRead(VSYNC));
+  while(digitalRead(VSYNC));
+  camera.prepareCapture();
+  camera.startCapture();
+  while(!digitalRead(VSYNC));
+  camera.stopCapture();
+
+  camera.readFrame(frame, XRES, YRES, BYTES_PER_PIXEL);
+}
+// ***************** /CAPTURE PICTURE ******************************
+
+
+// ***************** WEB SERVER ************************************
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
   if(type == WStype_TEXT){
+    char response[50];
     for(int i = 0; i < length; i++){
-      Serial.print((char) payload[i]);
+      //Serial.print((char) payload[i]);
+      response[i] = ((char) payload[i]);
+      
     }
     Serial.println();
+    Serial.println(response);
+
+    if(strcmp(response,"snap")){
+      Serial.println("picture routine triggered");
+      snapPicture();
+      for(int i = 0; i < frameSize; i++){
+        Serial.print(frame[i]);
+        char c[] = {(char)frame[i]};
+        webSocket.broadcastTXT(c, sizeof(c));  
+      }
+      Serial.println();
+      
+      
+    }
+    
   }
   
 }
@@ -294,9 +376,9 @@ void clientAvailable(){
   
   
 }
-// END OF WEB SERVER
+// ***************** /WEB SERVER ************************************
 
-// START CHECKING CONNECTION STATUS
+// ***************** CONNECTION STATUS ******************************
 void checkConnection(String net, String pwd){
     int attemptsAcc = 0; // attempts to connect
   
@@ -347,7 +429,6 @@ void checkConnection(String net, String pwd){
     }
   
 }
-// END CHECKING CONNECTION STATUS
 
 void checkNetStatus(){
   // if we are still connected just light the builtin led
@@ -369,8 +450,11 @@ void checkNetStatus(){
   
 }
 
+// ***************** /CONNECTION STATUS ******************************
 
-// START SCAN FOR NETWORKS 
+
+
+// ***************** SCAN FOR NETWORKS *******************************
 void scanNets(){
   
   // WiFi.scanNetworks will return the number of networks found
@@ -397,7 +481,7 @@ void scanNets(){
     Serial.println("");
       
 }
-// END SCAN FOR NETWORKS
+// ***************** /SCAN FOR NETWORKS *******************************
 
 void getInput(int input){
 
