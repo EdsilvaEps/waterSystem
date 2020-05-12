@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Painel de Configuracao - Smart Farm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <!-- links das abas -->
+  <div class="tab">
+    <button class="tablinks" onclick="openTab(event,'wifi')" id="defaultOpen">WiFi</button>
+    <button class="tablinks" onclick="openTab(event, 'status')">Status</button>
+    <button class="tablinks" onclick="openTab(event, 'config')">Configurar</button>
+  </div>
+
+
+  <!-- Conteudo das abas -->
+  <div id="wifi" class="tabcontent">
+    <h1>Painel de Configuracao - Smart Farm</h1>
+    <p>Digite o nome da rede e senha se houver</p>
+    <form action="/get">
+      <label for="nrede">Nome da Rede:</label><br>
+      <input type="text" id="nrede" name="nrede" value="admin"><br>
+      <label for="pwd">Senha:</label><br>
+      <input type="text" id="pwd" name="pwd" value="admin"><br><br>
+      <input type="checkbox" id="hasPwd" name="hasPwd">
+      <label for="hasPwd">Rede sem senha</label><br><br>
+      <input type="submit" value="Submit">
+    </form>
+  </div>
+
+  <div id="status" class="tabcontent">
+    <p>conteudo por adicionar</p>
+  </div>
+
+  <div id="config" class="tabcontent">
+    <p>
+      conteudo por adicionar
+    </p>
+  </div>
+
+
+</body>
+</html>
+
+<script>
+
+// Get the element with id="defaultOpen" and click on it
+
+document.getElementById("defaultOpen").click();
+
+function openTab(e, tabName){
+
+  var i, tabcontent, tablinks;
+
+  // Get all elements with class="tabcontent" and hide them
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+
+  // Get all elements with class="tablinks" and remove the class "active"
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+
+  // Show the current tab, and add an "active" class to the button that opened the tab
+  document.getElementById(tabName).style.display = "block";
+  e.currentTarget.className += " active";
+}
+
+</script>

@@ -1,28 +1,126 @@
+#include <WiFi.h>
 #include <Adafruit_GFX.h> // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
-
-#include "I2C.h"
-#include "FifoCamera.h"
-#include "Pins.h"
-
-#include <WebSocketsServer.h>
-#include <WebSockets.h>
-#include <WebSocketsClient.h>
-
-#include "WiFi.h"
-#include "BluetoothSerial.h"
+#include <ArduinoJson.h> // library for parsing json
+#include <PubSubClient.h>
+//#include "BluetoothSerial.h"
 #include <Preferences.h>
+#include "TOD.h"
+#include "WateringPlan.h"
+
+#define PREFS "my-app"
 
 Preferences preferences;
 
 //test network: Os Silva Wi Fi
 //test pass: c8906d2932
-String network = "---";
-String password= "---";
+//Pauliina's net : "TW-EAV510v28483";
+//Pauliina's net pwd: "58d19c6fa81fe5e6";
+
+
+String network = "TW-EAV510v28483";
+String password= "58d19c6fa81fe5e6";
 bool conncted = false;
 
 volatile int interruptCounter = 0;
+
+int level1Interrupt = 14;
+int level2Interrupt = 27;
+int level3Interrupt = 26;
+
+int serverLed = 25;
+int countingLed = 33;
+int dataLed = 32;
+
+int pumpPin = 12;
+
+// ******* MQTT VARIABLEs *****************
+// mqtt broker currently running on Heroku
+const char* mqttServer = "soldier-01.cloudmqtt.com";
+const int mqttPort= 18488;
+const char* mqttUser = "ehvtsbga";
+const char* mqttPassword = "5n7anyeMnoLR";
+
+const char* subscribeCtrlPath = "system/control/dispense";
+const char* subscribeTimingPath = "system/api/timing";
+const char* subscribeAmountPath = "system/app/amount";
+const char* publishTempPath = "system/hardware/temp";
+const char* publishLevelPath = "system/hardware/level";
+const char* publishReqNextSchedule = "system/hardware/nextWSchedule";
+const char* publishReport = "system/report";
+const char* testPath = "system/ping";
+
+const char* wateredMessage = "JUST_WATERED";
+const char* lowLvMessage = "LOW_WATER";
+
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// ********************* ******************
+
+// ********** DEBOUNCE ******************************
+// the following variables take care of the debouncing of the hardware.
+// The level sensors work like relays, closing the connection between 
+// two points (namely GPIO port and GND) there should a noise area while 
+// the tank is being filled or emptied where the rippling of the water 
+// might disturb this reading, so we need to setup a long debouncing time
+// to only allow the registering of new information by a single sensor after
+// the waters have calmed. 
+
+#define DEBOUNCE_TIME_MINS 5
+
+bool debounce[3] = {false, false, false}; // debounce vars for the 3 lvl sensors 
+
+
+/*void *debouncer(void *arguments){
+
+  int i = 0;
+  while(i < DEBOUNCE_TIME_MINS * 60){
+
+    sleep(1);
+    
+  }
+
+  debounce[0] = false;
+  debounce[1] = false;
+  debounce[2] = false;
+
+  return NULL;
+
+}*/
+
+// ************************************************
+
+
+//****** SETUP OF RTC MODULE ***************
+
+template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; } //Sets up serial streaming Serial<<"text"<<variable;
+TOD RTC; //Instantiate Time of Day class TOD as RTC
+uint8_t lastminute=0;
+uint8_t lastsecond=0;
+char printbuffer[50];
+bool TODvalid=false;
+
+//****** /SETUP OF RTC MODULE ***************
+
+// ***** SCHEDULE & WATERING VARIABLES *******
+int current_interval = 0;
+uint8_t deadline_hour = 0;
+uint8_t deadline_minute = 0;
+long int newAmount = 0;
+volatile unsigned int waterLevel = 0; // modified by level interruptions
+// variables to track the sensors 
+bool lv1 = false;
+bool lv2 = false;
+bool lv3 = false;
+
+Program currProgram;
+
+
+
+// ***** /SCHEDULE & WATERING VARIABLES *******
 
 int availableNets = 0;
 String inData = "";
@@ -31,44 +129,6 @@ String inData = "";
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux =  portMUX_INITIALIZER_UNLOCKED;
 bool toggleLed = 0;
-
- // TEMPORARY FOR WEB SERVING                               
-                                                            
- // set web server port number to 80                        
-  WiFiServer server(80);
-  WebSocketsServer webSocket = WebSocketsServer(81);                                     
- // Variable to store the HTTP request                     
- String header;                                             
-
-
-//******************** CAMERA SETTINGS *****************************
-
-I2C<SIOD, SIOC> i2c;
-FifoCamera<I2C<SIOD, SIOC>, RRST, WRST, RCK, WR, D0, D1, D2, D3, D4, D5, D6, D7> camera(i2c);
-
-//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST); this is commented since we arent using screens
-
-// resolution settings
-#define QQVGA
-//#define QQQVGA
-
-#ifdef QQVGA
-const int XRES = 160;
-const int YRES = 120;
-#endif
-
-#ifdef QQQVGA
-const int XRES = 80; 
-const int YRES = 60;
-#endif
-
-// frame size settings 
-const int BYTES_PER_PIXEL = 2;
-const int frameSize = XRES * YRES * BYTES_PER_PIXEL;
-unsigned char frame[frameSize];
-
-
-//******************************************************************
 
 // function to execute when interruption triggers
 void IRAM_ATTR onTimer() {
@@ -79,156 +139,107 @@ void IRAM_ATTR onTimer() {
 
 //BluetoothSerial SerialBT;
 
+void IRAM_ATTR levelChange1(){
 
-char webpage[] PROGMEM = R"=====(
-<html>
-  <head>
-    <script>
-      
-      const canvas = document.getElementById("mycanvas");
-      let ws;
-      let ctx;
-      let ln;
+  // toggle the related debouncer 
+  // and change level
+  if(!debounce[0]){
 
-      // initialize web socket
-      function init(){
-        ws = new WebSocket('ws://' + window.location.hostname + ':81/');
+    lv1 = !lv1;
 
-        ws.onmessage = function(event){
-          document.getElementById("rxConsole").value += event.data;
-
-          let arraybuffer = event.data;
-          /*if (arraybuffer.byteLength == 1) {
-              flag  = new Uint8Array(event.data); // Start Flag
-              if (flag == 0xAA) {
-                 ln = 0;                   
-              }
-              if (flag == 0xFF) {
-                 //alert("Last Block");
-              }
-
-              if (flag == 0x11) {
-                 //alert("Camera IP");
-              }
-
-          } else {
-              if (flag == 0x11) {
-                //alert("Camera IP " + evt.data);
-                camera_ip = event.data;
-                //document.getElementById("wifi-ip").innerText = camera_ip;
-                flag = 0;          
-              } else {
-                 var bytearray = new Uint8Array(event.data);
-                 display(bytearray, arraybuffer.byteLength, flag);
-              }
-          }*/
-        }
-
-        // websocket error handling
-        ws.onerror = function(event){
-          document.getElementById("msg").innerText = "Error: " + event.data;
-        }
-
-
-        if(canvas.getContext){
-          ctx = canvas.getContext('2d');
-          
-        } else {
-          alert("websocket not supported");
-        }
-      }
-
-      // send text back to node
-      function sendText(){
-        ws.send("snap");
-        document.getElementById("msg").textContent= "msg sent";
-        document.getElementById("rxConsole").value = "";
-        //document.getElementById("testmsg").value = "message sent";
-      }
-
-      // displaying image
-      /*function display(pixels, pixelcount, flag) {
-        //alert('display'); 
-        var i = 0;
-        for(y=0; y < yres; y++) {
-           for(x=0; x < xres; x++)
-           { 
-             i = (y * xres + x) << 1;
-             pixel16 = (0xffff & pixels[i]) | ((0xffff & pixels[i+1]) << 8);
-             imageData.data[ln+0] = ((((pixel16 >> 11) & 0x1F) * 527) + 23) >> 6;
-             imageData.data[ln+1] = ((((pixel16 >> 5) & 0x3F) * 259) + 33) >> 6;
-             imageData.data[ln+2] = (((pixel16 & 0x1F) * 527) + 23) >> 6;  
-             imageData.data[ln+3] = (0xFFFFFFFF) & 255;
-             ln += 4;
-         }
-       }
-
-      
+    // if water above the level 1 sensor
+    // then it's about < 50
+    // if below then it's < 40
+    if(lv1) waterLevel = 50;
+    else waterLevel = 40;
     
-        if (flag == 0xFF) { // last block
-         ln = 0;        
-         ctx.putImageData(imageData,0,0);
-         ws.send("next-frame");    
-       }    
-      }*/
+    debounce[0] = !debounce[0];
 
-     
-
-      
-    </script>
-  </head>
-  <body onload="javascritpt:init()">
-    <div>
-      <textarea id="rxConsole"></textarea>
-    </div>
-    <hr/>
-    <div>
-     
-     <canvas id="mycanvas" width="800" height="400" style="border:2px solid #000000;">
-     </canvas>
-     <p id="msg">camera offline</p> 
-    </div>
-    <div>
-      <!--<input type="text" id="txtBar" onkeydown="if(event.keyCode == 13) sendText();"/>-->
-      <button id="snap" onclick="sendText()">snap picture</button>
-    </div>
+    Serial.print("level: ");
+    Serial.print(waterLevel);
+    Serial.print(" | debouncer: ");
+    Serial.println(debounce[0]);
     
     
-  </body>
-</html>
+  }
+  
+ 
+  
+}
 
-)=====";
+void IRAM_ATTR levelChange2(){
 
+  // toggle the related debouncer 
+  // and change level
+  if(!debounce[1]){
 
+    lv2 = !lv2;
+    
+    // if water above the level 2 sensor
+    // then it's about < 70
+    // if below then it's < 50
+    if(lv2) waterLevel = 70;
+    else waterLevel = 50;
+    
+    debounce[1] = !debounce[1];
+    
+  }
+
+  
+}
+
+void IRAM_ATTR levelChange3(){
+
+  // toggle the related debouncer 
+  // and change level
+  if(!debounce[2]){
+
+    lv3 = !lv3;
+    
+    // if water above the level 2 sensor
+    // then it's about < 90
+    // if below then it's < 70
+    if(lv3) waterLevel = 90;
+    else waterLevel = 70;
+    
+    debounce[1] = !debounce[1];
+    
+  }
+
+}
 
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
     Serial.println("Initialization...");
-    i2c.init();
-    camera.init();
-
-    #ifdef QQVGA
-      camera.QQVGARGB565();
-    #endif
-    #ifdef QQQVGA 
-      camera.QQQVGARGB565();
-    #endif
-
-    pinMode(VSYNC, INPUT);
-    Serial.println("start");
-    //tft.initR(INITR_BLACKTAB);
-    //tft.fillScreen(0);
     
-    // enable bluetooth with device name as argument 
-    //SerialBT.begin("ESP32CTRL"); 
+    //pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(pumpPin, OUTPUT);
 
-    pinMode(LED_BUILTIN, OUTPUT);
+    // configuring interruption pins
+    pinMode(level1Interrupt, INPUT_PULLUP);
+    pinMode(level2Interrupt, INPUT_PULLUP);
+    pinMode(level3Interrupt, INPUT_PULLUP);
+    
+    // attaching interruptions linked to the water sensors
+    attachInterrupt(level1Interrupt, levelChange1, CHANGE);
+    attachInterrupt(level2Interrupt, levelChange2, CHANGE);
+    attachInterrupt(level3Interrupt, levelChange3, CHANGE);
+
+    pinMode(dataLed, OUTPUT);
+    pinMode(serverLed, OUTPUT);
+    pinMode(countingLed, OUTPUT);
+    
+    
+    
 
     connectToSavedNetwork();
-   
+    client.setServer(mqttServer, mqttPort);
+    client.setCallback(callback);
+    currProgram = getMemProgram();
+    printProgram();
     
-    
+
     
 }
 
@@ -242,11 +253,12 @@ void loop() {
     interruptCounter--;
     portEXIT_CRITICAL(&timerMux);
     toggleLed = !toggleLed;
-    digitalWrite(LED_BUILTIN, toggleLed);
+    //digitalWrite(LED_BUILTIN, toggleLed);
     
     
   }
 
+  
   if(Serial.available() > 0){
     char input = Serial.read(); 
     char inp[12]= {input};
@@ -256,127 +268,423 @@ void loop() {
   }
 
   checkNetStatus();
-  clientAvailable();
-  webSocket.loop();
-  webSocket.onEvent(webSocketEvent);
-  if(Serial.available()> 0){
-    char c[] = {(char)Serial.read()};
-    webSocket.broadcastTXT(c, sizeof(c));
-  }
+  countTime(); // perform continous check of time
+  if(!client.connected()){
+    
+    if(reconnectToBroker()){
+      digitalWrite(serverLed, HIGH);
+    }
 
+    else digitalWrite(serverLed,LOW);
+    
+  } 
+
+  if(TODvalid) digitalWrite(countingLed, HIGH);
+
+  client.loop();
+  countTime(); // perform continous check of time
+
+  
+
+  // making a lil testing
+  //if(publishMsg(testPath, "1000")){
+  //  Serial.println("test message published");
+  //}
+  
+
+  
+  
 }
 // ***************** /LOOP *********************************
 
+// ***************** PROGRAM FUNCTIONS ************************
+Program getMemProgram(){
 
-// ***************** CAPTURE PICTURE ******************************
-void snapPicture(){
-  while(!digitalRead(VSYNC));
-  while(digitalRead(VSYNC));
-  camera.prepareCapture();
-  camera.startCapture();
-  while(!digitalRead(VSYNC));
-  camera.stopCapture();
+  Program n;
+  
+  preferences.begin(PREFS, false);
+  n.deadlineHours = preferences.getInt("deadlineHours", 0);
+  n.deadlineMinutes = preferences.getInt("deadlineMinutes", 0);
+  n.amount = preferences.getInt("amount",0);
+  preferences.end();
 
-  camera.readFrame(frame, XRES, YRES, BYTES_PER_PIXEL);
+  return n;
+  
 }
-// ***************** /CAPTURE PICTURE ******************************
+
+void saveProgram(Program program){
+  
+  preferences.begin(PREFS, false);
+  preferences.putInt("deadlineHours",program.deadlineHours);
+  preferences.putInt("deadlineMinutes",program.deadlineMinutes);
+  preferences.putInt("amount", program.amount);
+  preferences.end();
+  
+  
+}
+
+// TODO: make this better
+void pumpAction(long int quantity){
+
+  /*
+   * Parting from inicial calculations assuming the ration
+   * pumping/Voltage is linear and proportional we calculate
+   * that under 9.0V we'll pump 49.5mL/s (test this).
+   * 
+   */
+
+  // quantity is the value in mL to be pumped.
+  digitalWrite(pumpPin, HIGH);
+  delay((quantity/49)*1000); // rounded to 49
+  digitalWrite(pumpPin, LOW);
+}
+
+// just prints the current program to the serial
+void printProgram(){
+    Serial.println("CURRENT PROGRAM: [");
+    Serial.print("TIME UNTIL WATERING: ");
+    Serial.print(currProgram.deadlineHours);
+    Serial.print(".");
+    Serial.println(currProgram.deadlineMinutes);
+    Serial.print("AMOUNT OF WATER: ");
+    Serial.println(currProgram.amount);
+}
+
+// ***************** /PROGRAM FUNCTIONS ************************
 
 
-// ***************** WEB SERVER ************************************
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
-  if(type == WStype_TEXT){
-    char response[50];
-    for(int i = 0; i < length; i++){
-      //Serial.print((char) payload[i]);
-      response[i] = ((char) payload[i]);
-      
-    }
-    Serial.println();
-    Serial.println(response);
+// ************** PUBLISH TO MQTT BROKER *******************
 
-    if(strcmp(response,"snap")){
-      Serial.println("picture routine triggered");
-      snapPicture();
-      for(int i = 0; i < frameSize; i++){
-        Serial.print(frame[i]);
-        char c[] = {(char)frame[i]};
-        webSocket.broadcastTXT(c, sizeof(c));  
-      }
-      Serial.println();
-      
-      
-    }
+/*
+ publish message on the specified topic in the MQTT broker
+ return false if client isnt connected
+*/
+bool publishMsg(const char* path, const char* msg){
+  
+  if(client.connected()){
+
+    client.publish(path, msg);
+    return true;
+  }
+
+  else{
+
+    Serial.println("cliente não conectado");
+    return false;
     
   }
+
+  // todo: use threads to do this delay
+  digitalWrite(dataLed, HIGH);
+  delay(300);
+  digitalWrite(dataLed, LOW);
+  
   
 }
 
-// Print local IP address and start web server
-void startServer(){
-  if(conncted){
-    Serial.println("IP address:");
-    Serial.println(WiFi.localIP());
+// *********************************************************
 
-    server.begin();
-    
-    webSocket.begin();
+// ***** CALLBACK FOR SUBSCRIPTIONS FROM MQTT BROKER ********
+
+// prints messages retrieved from MQTT BROKER
+// TODO: do something more useful with those messages
+void callback(char* topic, byte* payload, unsigned int length) {
+
+  
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+
+  char sPayload[10]; // save the payload into a char array for simpler use
+  for (int i=0;i<length;i++) {
+    sPayload[i] = (char)payload[i];
+    Serial.print((char)payload[i]);
   }
-  
-}
+  Serial.println();
 
-void clientAvailable(){
-  
-  if(conncted){
-    WiFiClient client= server.available(); // Listen for incoming clients 
+  // lets do something with those messages
+  if(strcmp(topic, subscribeCtrlPath) == 0){
+    // if we received a control message to start pumpin'
+    Serial.println("ctrl message");
+    pumpAction(currProgram.amount);
+    
+  } 
 
-    if (client) {                            // If a new client connects,
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client.connected()) {            // loop while the client's connected
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            //client.println("Connection: close");
-            client.println();
-            client.println(webpage);
+  else if(strcmp(topic, subscribeAmountPath) == 0){
+    // if we received a new amount message we might soon
+    // receive a new deadline message, if we just selected
+    // a new a program on the front end, save the amount message 
+    Serial.println("amount message");
 
+    //unsigned char* sAmount = (char)payload;
+    char sAmount[10];
+    for (int i=0;i<length;i++) {
+      sAmount[i] = (char)payload[i];
+      //strcat(sAmount,(char)payload[i]);
+ 
+      
+    }
+    newAmount = atoi(sAmount);
+    
+    
+  }
 
-                        
-            // The HTTP response ends with another blank line
-            client.println();
-            // Break out of the while loop
-            break;
-          } else { // if you got a newline, then clear currentLine
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
+  else if(strcmp(topic, subscribeTimingPath) == 0){
+    // if we receive a new timing message then we should 
+    // reload the current watering program with the new data 
+    // including the previously saved amount message 
+
+    char sHours[3] = {"0"};
+    char sMins[3] = {"0"};
+
+    // the code below is a "technical arrangement"
+    // also known in Brazil as "gambiarra". A hack im making 
+    // because the messages from the server either have 3 char (h:m),
+    // 4 chars (h:mm / hh:m) or they have 5 (hh:mm). 
+    // And since ive made the server code 
+    // im feeling quite dumb right now.
+
+    switch(length){
+      case(5):
+        //standard case hh:mm
+        sHours[0] = (char)payload[0];
+        sHours[1] = (char)payload[1];
+        sMins[0] = (char)payload[3];
+        sMins[1] = (char)payload[4];
+   
+        break;
+
+      case(4):
+        // it's either h:mm or hh:m
+        if((char)payload[1] == ':'){
+          // if h:mm
+          sHours[0] = (char)payload[0];
+          sMins[0] = (char)payload[2];
+          sMins[1] = (char)payload[3];
+        
+          
+        } else if((char)payload[2] == ':'){
+          // if hh:m
+          sHours[0] = (char)payload[0];
+          sHours[1] = (char)payload[1];
+          sMins[0] = (char)payload[3];
+          
+          
         }
-      }
+        break;
+
+      case(3):
+        // case h:m
+        sHours[0] = (char)payload[0];
+        sMins[0] = (char)payload[2];
+        break;
+
+      default: break;
     }
-    // Clear the header variable
-    header = "";
-    // Close the connection
-    client.stop();
-    Serial.println("Client disconnected.");
-    Serial.println("");
+    
+  
+   
+
+    // replace the current program if the message was valid
+    if(length > 2){
+      currProgram = getProgram(sHours, sMins, newAmount);
+      saveProgram(currProgram);
+      printProgram();  
+    }
+    
+    
   }
 
-    
- }
+  // request from the app to check status
+  // send back level and temperatura (when available)
+  else if(strcmp(topic, publishReport) == 0){
+
+    char level[3];
+    sprintf(level, "%d", waterLevel);
+    publishMsg(publishLevelPath, level);
+
+
+  }
+
   
+  // todo: use threads to do this delay
+  digitalWrite(dataLed, HIGH);
+  delay(300);
+  digitalWrite(dataLed, LOW);
+  
+  
+
   
 }
-// ***************** /WEB SERVER ************************************
+
+
+// **********************************************************
+
+
+
+// ************** CONNECTION TO MQTT BROKER ****************
+
+// TODO: FINISH BUILDING THE MQTT CLIENT
+// link to tutorial: https://www.arduinoecia.com.br/2019/02/enviando-mensagens-mqtt-modulo-esp32-wifi.html
+bool reconnectToBroker(){
+  // attempt to connection or reconnection to the broker
+
+  int attemptsAcc = 0; // attempts to connect
+  client.setServer(mqttServer, mqttPort);
+
+  // set function to handle the callback from subscription route
+  client.setCallback(callback);
+
+  /* code will make 15 attempts to connect to MQTT broker
+     (this is because we'll be using the CloudMQTT service
+     of Heroku and thus, it goes to sleep when it isnt used for
+     30 mins, causing slow waking. Upon successful connection with
+     server, client will subscribe to the global topics for 
+     timing and control.
+  */
+  while(!client.connected() && (attemptsAcc < 30)){
+    
+    Serial.print("Conectando com o broker ");
+    Serial.println(mqttServer);
+    
+    if(client.connect("ESP32Client",mqttUser,mqttPassword)){
+      
+      Serial.println("Conectado ao Broker!");
+      client.subscribe(subscribeTimingPath);
+      client.subscribe(subscribeCtrlPath);
+      client.subscribe(subscribeAmountPath);
+      client.subscribe(publishReport);
+      return true;
+      
+    } else {
+      
+      Serial.print("Estado cliente: ");
+      Serial.println(client.state());
+      return false;
+       
+    }
+    
+    
+    delay(100);
+    attemptsAcc++;
+    
+  }
+
+  
+}
+
+// **************************************************
+
+
+// ***************** RTC TIME REGISTERING AND PUMP CONTROL **********
+
+
+/**
+ * Continuously checks the time to see if the deadline
+ * for the next irrigation has been reached. If so, sends
+ * info data to the server, gets newest data, performs
+ * irrigation and sets next irrigation deadline.
+ * 
+ * returns void
+ */
+void countTime(){
+
+  if(RTC.second()!=lastsecond && TODvalid) //We want to perform this loop on the second, each second
+  {
+    lastsecond=RTC.second();
+    sprintf(printbuffer,"   UTC Time:%02i:%02i:%02i.%03i\n", RTC.hour(), RTC.minute(),RTC.second(),RTC.millisec());
+    Serial<<printbuffer; 
+  }
+
+  // every minute check the schedule
+  if(RTC.minute() != lastminute && TODvalid){
+    lastminute=RTC.minute();
+
+    // if any debounce is on, release them
+    if(debounce[0] || debounce[1] || debounce[2]){
+
+      char level[3];
+      sprintf(level, "%d", waterLevel);
+      publishMsg(publishLevelPath, level);
+
+      debounce[0] = false;
+      debounce[1] = false;
+      debounce[2] = false;
+
+    }
+      
+    
+    decrementCounter();
+    printProgram();
+    
+  }
+    
+  if(!TODvalid) //if we still havent got a valid TOD, hit the NIST time server 
+  {
+     char ssid[20];
+     char pwd[20];
+     network.toCharArray(ssid,20);
+     password.toCharArray(pwd,20);
+     if(RTC.begin(ssid,pwd))TODvalid=true; 
+   }
+}
+
+/**
+ * handles the decrementing of the hour and minute counters 
+ * as well as what to do after they reach 0
+ */
+void decrementCounter(){
+
+  int remMins = currProgram.deadlineMinutes;
+  int remHours = currProgram.deadlineHours;
+
+  
+  if(remMins > 0){
+
+    currProgram.deadlineMinutes = remMins - 1;
+    
+  } else {
+
+    if(remHours > 0){
+      // decrement hours and reset minutes counter
+      currProgram.deadlineHours = remHours - 1;
+      currProgram.deadlineMinutes = 60;
+      
+    }
+
+    else {
+      /*
+       * if 0 hours and 0 minutes remaining we :
+       * - turn the pump on
+       * - reset the counter with the last saved data
+       * - request the next watering time from server
+       * - send status data to the server
+      */
+
+      pumpAction(currProgram.amount);
+      currProgram = getMemProgram();
+    
+      if(publishMsg(publishReqNextSchedule, "1")){
+
+        char level[3];
+        sprintf(level, "%d", waterLevel);
+        publishMsg(publishLevelPath, level);
+        publishMsg(publishReport, wateredMessage);
+        
+      }
+            
+    }
+    
+  }
+ 
+  
+}
+  
+
+// ***************** /RTC TIME REGISTERING AND PUMP CONTROL **********
+
+
+
 
 // ***************** CONNECTION STATUS ******************************
 void checkConnection(String net, String pwd){
@@ -399,7 +707,7 @@ void checkConnection(String net, String pwd){
       conncted = true;
       Serial.print("Connectado com a rede ");
       Serial.println(net);
-      digitalWrite(LED_BUILTIN, HIGH); 
+      //digitalWrite(LED_BUILTIN, HIGH); // Uncomment if we are on ESP32 DOIT 
       
       
       // if we have our timer enabled, disable it 
@@ -408,10 +716,15 @@ void checkConnection(String net, String pwd){
         timerDetachInterrupt(timer);
       }
       saveCredentials(net, pwd); // if connection successful, save details to memory
-
-      startServer(); // start web server
       
-
+      char ssid[20];
+      char pwd[20];
+      network.toCharArray(ssid,20);
+      password.toCharArray(pwd,20);
+      if(RTC.begin(ssid,pwd))TODvalid=true;   //.begin(ssid,password) requires SSID and password of your home access point
+                                               //All the action is in this one function.  It connects to access point, sends
+                                               //an NTP time query, and receives the time mark. Returns TRUE on success.
+      lastminute=RTC.minute();
 
          
     } else{
@@ -436,12 +749,12 @@ void checkNetStatus(){
   if(conncted){
     
     if(WiFi.status() == WL_CONNECTED){
-      digitalWrite(LED_BUILTIN, HIGH);
+      //digitalWrite(LED_BUILTIN, HIGH); // uncomment if we are on ESP32 DOIT
     } else {
       // if not, turn it off and attempt to connect to previously
       // connected network, then check connection again
       conncted = false;
-      digitalWrite(LED_BUILTIN, LOW);
+      //digitalWrite(LED_BUILTIN, LOW); // uncomment if we are on ESP32 DOIT
       connectToSavedNetwork();
     }
     
@@ -451,7 +764,6 @@ void checkNetStatus(){
 }
 
 // ***************** /CONNECTION STATUS ******************************
-
 
 
 // ***************** SCAN FOR NETWORKS *******************************
@@ -548,8 +860,8 @@ void disconnection(){
 
 // START CONNECTING TO MEMORY-SAVED NETWORK
 void connectToSavedNetwork(){ 
-  
-    getLastSavedCredentials(); // get details from last saved network
+    // using home connection
+    //getLastSavedCredentials(); // get details from last saved network
     if(network != "---" && password != "---"){ // if we have connection details in store
       char net[60];
       network.toCharArray(net, 60);
