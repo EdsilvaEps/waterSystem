@@ -1,13 +1,12 @@
+#include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include <ssl_client.h>
-
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <Adafruit_GFX.h> // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
-#include <ArduinoJson.h> // library for parsing json
 #include <PubSubClient.h>
 //#include "BluetoothSerial.h"
 #include <Preferences.h>
@@ -105,15 +104,16 @@ const char* subscribeAmountPath = "netosilvan78@gmail.com/system/app/amount";
 const char* publishTempPath = "netosilvan78@gmail.com/system/hardware/temp";
 const char* publishLevelPath = "netosilvan78@gmail.com/system/hardware/level";
 const char* publishReqNextSchedule = "netosilvan78@gmail.com/system/hardware/nextWSchedule";
-const char* publishReport = "system/report";
-const char* testPath = "system/ping";
+const char* setupWateringProgram = "netosilvan78@gmail.com/system/hardware/setupProgram";
+const char* publishReport = "netosilvan78@gmail.com/system/report";
+const char* pingPath = "netosilvan78@gmail.com/system/ping";
 
 const char* wateredMessage = "JUST_WATERED";
 const char* lowLvMessage = "LOW_WATER";
 
 
-//WiFiClient espClient;
-WiFiClientSecure espClient;
+WiFiClient espClient;
+//WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
 // NTP Client for time variables
@@ -305,11 +305,14 @@ void loop() {
   switch(state){
 
     case CHECK_CONNECTION_STATE:
-      // connection check
+
       if(isConnected()){
-        state = BROKER_CONNECTION_STATE;
-        Serial.println("WiFi conectado! Verificando proximas tarefas.");
-      } else {
+        state = TIME_CHECK_STATE;
+        //Serial.println("WiFi conectado! Verificando proximas tarefas.");
+        break;
+      } 
+      
+      else {
 
         if(!connectToSavedNetwork()){
           Serial.println("WiFi não conectado! Vamos tentar outra rede");
@@ -328,31 +331,15 @@ void loop() {
         int in = atoi(inp); // convert from ascII to int
         connectToSelectedNet(in);
 
-        if (isConnected()) state = BROKER_CONNECTION_STATE;
-        
-      }
-      break;
-
-    case BROKER_CONNECTION_STATE:
-     
-      if(!client.connected()){
-        
-        if(reconnectToBroker()){
-          digitalWrite(serverLed, HIGH);
-          state = TIME_CHECK_STATE;
-        }
-
-        else {
-
-          digitalWrite(serverLed, LOW);
-          state = CHECK_CONNECTION_STATE;
-        }
+        if (isConnected()) state = TIME_CHECK_STATE;
         
       }
       break;
 
     case TIME_CHECK_STATE:
 
+      state = BROKER_CONNECTION_STATE; // next state
+      
       if(!timeClient.update()){
         
         timeClient.forceUpdate();
@@ -362,17 +349,38 @@ void loop() {
         Serial.println(timeClient.getSeconds());
         Serial.println(timeClient.getDay());
       
+      } //else Serial.println("relogio alinhado...");
+
+      if(wprogram.automaticWatering) break;
+
+      if(isDeadline){
+        state = PERFORMING_WATERING_STATE;
+        break;
       }
 
-      else{
-        // TODO: develop the time-checking functions
-       
+      break;
+
+    case BROKER_CONNECTION_STATE:
+     
+      if(!client.connected()){
         
+        if(reconnectToBroker()){
+          digitalWrite(serverLed, HIGH);
+          state = SENSOR_CHECK_STATE;
+          break;
+        }
+        
+        digitalWrite(serverLed, LOW);
+        state = CHECK_CONNECTION_STATE;
+        break;
         
       }
 
+      //Serial.println("Broker ok..");
       state = SENSOR_CHECK_STATE;
       break;
+
+    
 
     case SENSOR_CHECK_STATE:
       // here be sensor checking (humidity) related actions
@@ -380,21 +388,19 @@ void loop() {
       // of the other level sensors in previous times to assure if tank
       // is going up or down.
       state = CHECK_CONNECTION_STATE;
-      
+      //delay(500);
+
       break;
 
     case PERFORMING_WATERING_STATE:
      // here watering will happen when conditions are met
      // this part is skipped for now
-      
+     Serial.println("realizando regagem.");
      pumpAction(wprogram.amountWater);
      state = CHECK_CONNECTION_STATE; // restart cicle
       
      break;
-
-    case NEW_PROGRAM_RECEIVED:
-      // received new program, what to do? 
-
+     
     default:
       state = CHECK_CONNECTION_STATE;
     
@@ -507,6 +513,10 @@ bool publishMsg(const char* path, const char* msg){
   if(client.connected()){
 
     client.publish(path, msg);
+    Serial.print("Mensagem enviada: ");
+    Serial.println(msg);
+    Serial.print("Para: ");
+    Serial.println(path);
     return true;
   }
 
@@ -528,133 +538,71 @@ bool publishMsg(const char* path, const char* msg){
 
 // ***** CALLBACK FOR SUBSCRIPTIONS FROM MQTT BROKER ********
 
-// prints messages retrieved from MQTT BROKER
-void callback(char* topic, byte* payload, unsigned int length) {
+// since we needed to simplify the code for better understanding
+// this simple function returns if the topic and the path are the same
+bool isPath(char* topic, const char* path){
+  return strcmp(topic, path) == 0;
+}
 
-  
+// since we need to control the hardware scheduling and actions
+// through user input using the mqtt and android app, we have this callback.
+// this function is called when a message from the mqtt broker arrives.
+void callback(char* topic, byte* payload, unsigned int length){
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
 
-  char sPayload[10]; // save the payload into a char array for simpler use
+  char mqttMessage[100]; 
   for (int i=0;i<length;i++) {
-    sPayload[i] = (char)payload[i];
+    mqttMessage[i] = (char)payload[i];
     Serial.print((char)payload[i]);
   }
-  Serial.println();
 
-  // lets do something with those messages
-  if(strcmp(topic, subscribeCtrlPath) == 0){
-    // if we received a control message to start pumpin'
-    Serial.println("ctrl message");
-    pumpAction(currProgram.amount);
-    
-  } 
-
-  else if(strcmp(topic, subscribeAmountPath) == 0){
-    // if we received a new amount message we might soon
-    // receive a new deadline message, if we just selected
-    // a new a program on the front end, save the amount message 
-    Serial.println("amount message");
-
-    //unsigned char* sAmount = (char)payload;
-    char sAmount[10];
-    for (int i=0;i<length;i++) {
-      sAmount[i] = (char)payload[i];
-      //strcat(sAmount,(char)payload[i]);
- 
-      
-    }
-    newAmount = atoi(sAmount);
-    
-    
+  if(isPath(topic, subscribeCtrlPath)) {
+    state = PERFORMING_WATERING_STATE;
+    publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
   }
 
-  else if(strcmp(topic, subscribeTimingPath) == 0){
-    // if we receive a new timing message then we should 
-    // reload the current watering program with the new data 
-    // including the previously saved amount message 
+  if(isPath(topic, setupWateringProgram)) changeDefaultProgram(mqttMessage);
 
-    char sHours[3] = {"0"};
-    char sMins[3] = {"0"};
-
-    // the code below is a "technical arrangement"
-    // also known in Brazil as "gambiarra". A hack im making 
-    // because the messages from the server either have 3 char (h:m),
-    // 4 chars (h:mm / hh:m) or they have 5 (hh:mm). 
-    // And since ive made the server code 
-    // im feeling quite dumb right now.
-
-    switch(length){
-      case(5):
-        //standard case hh:mm
-        sHours[0] = (char)payload[0];
-        sHours[1] = (char)payload[1];
-        sMins[0] = (char)payload[3];
-        sMins[1] = (char)payload[4];
-   
-        break;
-
-      case(4):
-        // it's either h:mm or hh:m
-        if((char)payload[1] == ':'){
-          // if h:mm
-          sHours[0] = (char)payload[0];
-          sMins[0] = (char)payload[2];
-          sMins[1] = (char)payload[3];
-        
-          
-        } else if((char)payload[2] == ':'){
-          // if hh:m
-          sHours[0] = (char)payload[0];
-          sHours[1] = (char)payload[1];
-          sMins[0] = (char)payload[3];
-          
-          
-        }
-        break;
-
-      case(3):
-        // case h:m
-        sHours[0] = (char)payload[0];
-        sMins[0] = (char)payload[2];
-        break;
-
-      default: break;
-    }
-    
-  
-   
-
-    // replace the current program if the message was valid
-    if(length > 2){
-      currProgram = getProgram(sHours, sMins, newAmount);
-      saveProgram(currProgram);
-      printProgram();  
-    }
-    
-    
-  }
-
-  // request from the app to check status
-  // send back level and temperatura (when available)
-  else if(strcmp(topic, publishReport) == 0){
-
+  if(isPath(topic, publishReport)){
     char level[3];
     sprintf(level, "%d", waterLevel);
-    publishMsg(publishLevelPath, level);
-
-
+    publishMsg(publishLevelPath, level); 
   }
 
-  
   digitalWrite(dataLed, HIGH);
   delay(300);
   digitalWrite(dataLed, LOW);
   
-  
+}
 
-  
+// Since this code uses a "default" watering program, a 
+// global variable object that contains the data of the 
+// watering program currently being used, we have this
+// function that changes this default object if requested 
+// by the user through the network.
+void changeDefaultProgram(char message[100]){
+
+  StaticJsonDocument<200> jsonOb;
+
+  DeserializationError error = deserializeJson(jsonOb, message);
+
+  if(error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+
+  wprogram.amountWater = jsonOb["amount"]; 
+  wprogram.gmtTimezone = jsonOb["gmtTimezone"];
+  wprogram.deadlineHour = jsonOb["deadlineHour"]; 
+  wprogram.deadlineMinute = jsonOb["deadlineMinute"]; 
+  wprogram.deadlineDay = jsonOb["deadlineDay"]; 
+  wprogram.automaticWatering = jsonOb["automaticWatering"];
+
+  saveWProgram(wprogram);
+
 }
 
 
@@ -669,30 +617,38 @@ void callback(char* topic, byte* payload, unsigned int length) {
 // if the connection was successful or not so we can send and receive information from 
 // the other peripherals in the network.
 bool reconnectToBroker(){
-  
+
+  int reconnectionDelay = 1000;
   int connectionAttempts = 0;
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
+
+  Serial.print("Tentando conexão com o broker ");
+  Serial.println(mqttServer);
+  Serial.print("Usuario: ");
+  Serial.println(mqttUser);
+  Serial.print("Porta: ");
+  Serial.println(mqttPort);
   
   while(!client.connected() && (connectionAttempts < 30)){
     
-    Serial.print("Conectando com o broker ");
-    Serial.print(mqttServer);
-    Serial.print(" - tentativas ");
+    Serial.print("tentativas ");
     Serial.println(connectionAttempts);
     
-    if(client.connect("EddieHomeWS-ESP32Client",mqttUser,mqttPassword)){
+    if(client.connect("EddieHomeWS",mqttUser,mqttPassword)){
       
       Serial.println("Conectado ao Broker!");
       client.subscribe(subscribeTimingPath);
       client.subscribe(subscribeCtrlPath);
       client.subscribe(subscribeAmountPath);
       client.subscribe(publishReport);
+      client.subscribe(setupWateringProgram);
+      publishMsg(pingPath, "Olá! Dispositvo SmartFarm conectado!");
       return true;
       
     } 
     
-    delay(100);
+    delay(reconnectionDelay);
     connectionAttempts++;
     
   }
@@ -708,6 +664,17 @@ bool reconnectToBroker(){
 
 
 // ***************** RTC TIME REGISTERING AND PUMP CONTROL **********
+
+// Since we need to check for the deadline of the watering action
+// this function checks if current hour and minute match with 
+// the default watering program deadline.
+bool isDeadline(){
+  if ((wprogram.deadlineHour == timeClient.getHours()) && (wprogram.deadlineMinute == timeClient.getMinutes())){
+    return true;
+  }
+
+  return false;
+}
 
 
 /**
@@ -920,7 +887,10 @@ void checkNetStatus(){
       // connected network, then check connection again
       conncted = false;
       //digitalWrite(LED_BUILTIN, LOW); // uncomment if we are on ESP32 DOIT
-      connectToSavedNetwork();
+      
+
+
+
     }
     
   }
@@ -1044,6 +1014,8 @@ bool connectToSavedNetwork(){
       
     }
 
+    return false;
+
     
   
 }
@@ -1081,14 +1053,5 @@ void getLastSavedCredentials(){
   preferences.end();
 }
 // END GETTING LAST SAVED CREDENTIALS FROM MEMORY
-
-// START SENDING STATUS REPORT THROUGH SERIAL
-void sendReport(){
-  // in the future this report might be sent online
-  Serial.print("Connected:");
-  Serial.println(conncted);
-  
-}
-// END SENDING STATUS REPORT THROUGH SERIAL
 
 // code for interruption: https://techtutorialsx.com/2017/10/07/esp32-arduino-timer-interrupts/
