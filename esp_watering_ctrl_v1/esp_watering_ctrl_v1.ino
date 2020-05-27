@@ -287,7 +287,7 @@ void setup() {
     // mqtt settings 
     //espClient.setCACert(ca_cert); // SSL/TLS certificate
     client.setServer(mqttServer, mqttPort);
-    client.setCallback(callback);
+    client.setCallback(dataCallback);
     currProgram = getMemProgram();
     printProgram();
 
@@ -377,6 +377,7 @@ void loop() {
       }
 
       //Serial.println("Broker ok..");
+      client.loop();
       state = SENSOR_CHECK_STATE;
       break;
 
@@ -547,12 +548,15 @@ bool isPath(char* topic, const char* path){
 // since we need to control the hardware scheduling and actions
 // through user input using the mqtt and android app, we have this callback.
 // this function is called when a message from the mqtt broker arrives.
-void callback(char* topic, byte* payload, unsigned int length){
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+void dataCallback(char* topic, byte* payload, unsigned int length){
 
-  char mqttMessage[100]; 
+  char payloadStr[length + 1];
+  memset(payloadStr, 0, length + 1);
+  strncpy(payloadStr, (char*)payload, length);
+  Serial.printf("Data    : dataCallback. Topic : [%s]\n", topic);
+  Serial.printf("Data    : dataCallback. Payload : %s\n", payloadStr);
+
+  char mqttMessage[100];  // TODO: payloadStr already does this line
   for (int i=0;i<length;i++) {
     mqttMessage[i] = (char)payload[i];
     Serial.print((char)payload[i]);
@@ -569,11 +573,7 @@ void callback(char* topic, byte* payload, unsigned int length){
     char level[3];
     sprintf(level, "%d", waterLevel);
     publishMsg(publishLevelPath, level); 
-  }
-
-  digitalWrite(dataLed, HIGH);
-  delay(300);
-  digitalWrite(dataLed, LOW);
+  } 
   
 }
 
@@ -621,7 +621,7 @@ bool reconnectToBroker(){
   int reconnectionDelay = 1000;
   int connectionAttempts = 0;
   client.setServer(mqttServer, mqttPort);
-  client.setCallback(callback);
+  client.setCallback(dataCallback);
 
   Serial.print("Tentando conexão com o broker ");
   Serial.println(mqttServer);
