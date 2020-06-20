@@ -279,7 +279,7 @@ void setup() {
     
 
     // try to get watering program from memory
-    wprogram = getWProgram();
+    setWProgramFromMemory();
 
     // try to connect to the network 
     connectToSavedNetwork();
@@ -421,33 +421,44 @@ void loop() {
 
 // TODO: we need to cover the "multiple days" avenue
 // TODO: make sure the entire program from the app gets saved
-WateringProgram getWProgram(){
+
+/* Since after after the first program setting we'll save it to memory 
+ * we'll need to retrieve it after every new startup of the system. This 
+ * function gets the json string from memory and makes it default in the 
+ * system.
+*/
+void setWProgramFromMemory(){
 
   WateringProgram w;
   preferences.begin(PREFS, false);
-  w.amountWater = preferences.getInt("amount", 1000);
-  w.gmtTimezone = preferences.getInt("gmtTimezone", MANAUSGMT);
-  w.deadlineHour = preferences.getInt("deadlineHour", 12);
-  w.deadlineMinute = preferences.getInt("deadlineMinute", 0);
-  w.deadlineDay = preferences.getInt("deadlineDay", 0); // sunday
-  w.automaticWatering = preferences.getBool("automaticWatering", true); // makes the dealine useless
+  String jsonProgram = preferences.getString("watering_program", "");
+  preferences.end();  
 
-  return w;
+  char buf[100];
+  jsonProgram.toCharArray(buf,100); 
+  changeDefaultProgram(buf);
+  
+  /*StaticJsonDocument<200> doc;
+  DeserializationError err =  deserializeJson(doc, jsonProgram);
+
+  if(err){
+    Serial.print(F("Deserializacao falhou: "));
+    Serial.println(err.c_str());
+  } else{
+
+    w.amountWater = doc["amountWater"];
+    w.gmtTimezone = doc["gmtTimezone"]; //preferences.getInt("gmtTimezone", MANAUSGMT);
+    w.deadlineHour = doc["deadlineHour"]; //preferences.getInt("deadlineHour", 12);
+    w.deadlineMinute = doc["deadlineMinute"];  //preferences.getInt("deadlineMinute", 0);
+    w.deadlineDays = doc["deadlineDays"]; //preferences.getInt("deadlineDay", 0); // sunday
+    w.automaticWatering = doc["automaticWatering"]; //preferences.getBool("automaticWatering", true);
+    
+  }
+  
+  return w;*/
 
 }
 
-void saveWProgram(WateringProgram program){
-
-  preferences.begin(PREFS, false);
-  preferences.putInt("gmtTimezone",program.gmtTimezone);
-  preferences.putInt("deadlineHour",program.deadlineHour);
-  preferences.putInt("deadlineMinute", program.deadlineMinute);
-  preferences.putInt("deadlineDay", program.deadlineDay);
-  preferences.putBool("automaticWatering", program.automaticWatering);
-  preferences.end();
-  
-  
-}
 
 Program getMemProgram(){
 
@@ -581,12 +592,14 @@ void dataCallback(char* topic, byte* payload, unsigned int length){
 // global variable object that contains the data of the 
 // watering program currently being used, we have this
 // function that changes this default object if requested 
-// by the user through the network.
+// by the user through the network. After everything, it saves 
+// the json string in memory.
 void changeDefaultProgram(char message[100]){
 
-  StaticJsonDocument<200> jsonOb;
+  const size_t capacity = JSON_ARRAY_SIZE(7) + JSON_OBJECT_SIZE(6) + 100;
+  DynamicJsonDocument doc(capacity);
 
-  DeserializationError error = deserializeJson(jsonOb, message);
+  DeserializationError error = deserializeJson(doc, message);
 
   if(error) {
     Serial.print(F("deserializeJson() failed: "));
@@ -594,14 +607,19 @@ void changeDefaultProgram(char message[100]){
     return;
   }
 
-  wprogram.amountWater = jsonOb["amount"]; 
-  wprogram.gmtTimezone = jsonOb["gmtTimezone"];
-  wprogram.deadlineHour = jsonOb["deadlineHour"]; 
-  wprogram.deadlineMinute = jsonOb["deadlineMinute"]; 
-  wprogram.deadlineDay = jsonOb["deadlineDay"]; 
-  wprogram.automaticWatering = jsonOb["automaticWatering"];
+  wprogram.amountWater = doc["amount"]; 
+  wprogram.gmtTimezone = doc["gmtTimezone"];
+  wprogram.deadlineHour = doc["deadlineHour"]; 
+  wprogram.deadlineMinute = doc["deadlineMinute"]; 
+  JsonArray dataDays = doc["deadlineDays"];
+  for (int i = 0; i < 7; i++){
+    wprogram.deadlineDays[i] = dataDays[i]; 
+  }
+  wprogram.automaticWatering = doc["automaticWatering"];
 
-  saveWProgram(wprogram);
+  preferences.begin(PREFS, false);
+  preferences.putString("watering_program", message);
+  preferences.end();
 
 }
 
@@ -818,6 +836,7 @@ bool connectedAfterTimeout(String net, String pwd){
 }
 
 // DEPRECATED
+/*
 void checkConnection(String net, String pwd){  
     int attemptsAcc = 0; // attempts to connect
   
@@ -834,6 +853,7 @@ void checkConnection(String net, String pwd){
     the led every half second, announcing that we cant connect, the blinking it assynchronous
     because if we cant connect to wifi, we'll start bluetooth service to let the user input
     data for connecting to another network*/
+    /*
     if(isConnected()){
       conncted = true;
 
@@ -866,6 +886,7 @@ void checkConnection(String net, String pwd){
       /* below attaching timer interrupt with timer variable as first arg
       onTimer function as second ard and true for interrupt 
       generated on edge type */
+      /*
       timerAttachInterrupt(timer, &onTimer, true);
       timerAlarmWrite(timer,500000, true); // generate an interrupt every 0.5 second
       timerAlarmEnable(timer); // enable interruption 
@@ -874,6 +895,7 @@ void checkConnection(String net, String pwd){
     }
   
 }
+*/
 
 void checkNetStatus(){
   // if we are still connected just light the builtin led

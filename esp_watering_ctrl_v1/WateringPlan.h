@@ -13,6 +13,25 @@ extern "C" {
 
 #define CHAR_SIZE 3
 
+/* expected json format for WateringProgram
+ * {
+  "amountWater": 1000,
+  "gmtTimezone": -4,
+  "deadlineHour": 12,
+  "deadlineMinute": 0,
+  "deadlineDays": [
+    0,
+    2,
+    4,
+    -1,
+    -1,
+    -1,
+    -1
+  ],
+  "automaticWatering": false
+}
+*/
+
 // structure representing a Program object  
 // it contains the dealine until next watering in minutes 
 // and the amount of water in mililiters (to be converted in time
@@ -29,7 +48,7 @@ typedef struct{
   int gmtTimezone;
   int deadlineHour;
   int deadlineMinute;
-  int deadlineDay;
+  int deadlineDays[7];
   bool automaticWatering;
 } WateringProgram;
 
