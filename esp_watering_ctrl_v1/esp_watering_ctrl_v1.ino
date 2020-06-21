@@ -259,7 +259,8 @@ void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
     Serial.println("Initialization...");
-    
+    Serial.setDebugOutput(true);
+
     //pinMode(LED_BUILTIN, OUTPUT);
     pinMode(pumpPin, OUTPUT);
 
@@ -286,9 +287,9 @@ void setup() {
     
     // mqtt settings 
     //espClient.setCACert(ca_cert); // SSL/TLS certificate
-    client.setServer(mqttServer, mqttPort);
-    client.setCallback(dataCallback);
-    currProgram = getMemProgram();
+    //client.setServer(mqttServer, mqttPort);
+    //client.setCallback(dataCallback);
+    //currProgram = getMemProgram();
     printProgram();
 
     // TODO: customize this so we get the gmt from the loaded program.
@@ -305,8 +306,9 @@ void loop() {
   switch(state){
 
     case CHECK_CONNECTION_STATE:
-
+      //Serial.println("check connection state");
       if(isConnected()){
+        
         state = TIME_CHECK_STATE;
         //Serial.println("WiFi conectado! Verificando proximas tarefas.");
         break;
@@ -324,7 +326,7 @@ void loop() {
       break;
 
     case SELECT_NETWORKS_STATE:
-     
+      //Serial.println("select nets state");
       if(Serial.available() > 0){
         char input = Serial.read(); 
         char inp[12]= {input};
@@ -337,7 +339,7 @@ void loop() {
       break;
 
     case TIME_CHECK_STATE:
-
+      //Serial.println("time check state");
       state = BROKER_CONNECTION_STATE; // next state
       
       if(!timeClient.update()){
@@ -361,7 +363,9 @@ void loop() {
       break;
 
     case BROKER_CONNECTION_STATE:
-     
+    
+      //Serial.println("broker connection state");
+      
       if(!client.connected()){
         
         if(reconnectToBroker()){
@@ -388,6 +392,7 @@ void loop() {
       // TODO: instead of using interruptions, we can check the state 
       // of the other level sensors in previous times to assure if tank
       // is going up or down.
+      //Serial.println("sensor check state");
       state = CHECK_CONNECTION_STATE;
       //delay(500);
 
@@ -495,6 +500,8 @@ void pumpAction(long int quantity){
    */
 
   // quantity is the value in mL to be pumped.
+  Serial.println("realizando regagem");
+  
   digitalWrite(pumpPin, HIGH);
   delay((quantity/49)*1000); // rounded to 49
   digitalWrite(pumpPin, LOW);
@@ -503,12 +510,12 @@ void pumpAction(long int quantity){
 // just prints the current program to the serial
 void printProgram(){
     Serial.println("CURRENT PROGRAM: [");
-    Serial.print("TIME UNTIL WATERING: ");
-    Serial.print(currProgram.deadlineHours);
-    Serial.print(".");
-    Serial.println(currProgram.deadlineMinutes);
+    Serial.print("IRRIGATION TIME: ");
+    Serial.print(wprogram.deadlineHour);
+    Serial.print(":");
+    Serial.println(wprogram.deadlineMinute);
     Serial.print("AMOUNT OF WATER: ");
-    Serial.println(currProgram.amount);
+    Serial.println(wprogram.amountWater);
 }
 
 // ***************** /PROGRAM FUNCTIONS ************************
@@ -546,6 +553,29 @@ bool publishMsg(const char* path, const char* msg){
   
 }
 
+/*  Sometimes no guidelines for watering programs are provided, in those 
+ *  cases we'll just set the settings to half a liter of water dispensed and 
+ *  automatic watering (dry soil). This function returns a watering program 
+ *  with only basic values.
+*/
+WateringProgram getBasicProgram(){
+  Serial.println("getting the basic wateringsystem program");
+  
+  WateringProgram basic;
+  basic.amountWater = 500;
+  basic.gmtTimezone = MANAUSGMT;
+  basic.deadlineHour = 0;
+  basic.deadlineHour = 0;
+  basic.deadlineMinute = 0;
+  for (int i; i < 7; i++){
+    basic.deadlineDays[i] = -1;
+  }
+  basic.automaticWatering = true;
+
+  return basic;
+  
+}
+
 // *********************************************************
 
 // ***** CALLBACK FOR SUBSCRIPTIONS FROM MQTT BROKER ********
@@ -559,7 +589,9 @@ bool isPath(char* topic, const char* path){
 // since we need to control the hardware scheduling and actions
 // through user input using the mqtt and android app, we have this callback.
 // this function is called when a message from the mqtt broker arrives.
-void dataCallback(char* topic, byte* payload, unsigned int length){
+void callback(char* topic, byte* payload, unsigned int length){
+
+  Serial.println("Callback called");
 
   char payloadStr[length + 1];
   memset(payloadStr, 0, length + 1);
@@ -567,18 +599,18 @@ void dataCallback(char* topic, byte* payload, unsigned int length){
   Serial.printf("Data    : dataCallback. Topic : [%s]\n", topic);
   Serial.printf("Data    : dataCallback. Payload : %s\n", payloadStr);
 
-  char mqttMessage[100];  // TODO: payloadStr already does this line
+  /*char mqttMessage[100];  // TODO: payloadStr already does this line
   for (int i=0;i<length;i++) {
     mqttMessage[i] = (char)payload[i];
     Serial.print((char)payload[i]);
-  }
+  }*/
 
   if(isPath(topic, subscribeCtrlPath)) {
     state = PERFORMING_WATERING_STATE;
     publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
   }
 
-  if(isPath(topic, setupWateringProgram)) changeDefaultProgram(mqttMessage);
+  if(isPath(topic, setupWateringProgram)) changeDefaultProgram(payloadStr);
 
   if(isPath(topic, publishReport)){
     char level[3];
@@ -593,19 +625,21 @@ void dataCallback(char* topic, byte* payload, unsigned int length){
 // watering program currently being used, we have this
 // function that changes this default object if requested 
 // by the user through the network. After everything, it saves 
-// the json string in memory.
+// the json string in memory. If no json is provided, the default 
+// program is set for the basic values.
 void changeDefaultProgram(char message[100]){
 
   const size_t capacity = JSON_ARRAY_SIZE(7) + JSON_OBJECT_SIZE(6) + 100;
   DynamicJsonDocument doc(capacity);
 
   DeserializationError error = deserializeJson(doc, message);
-
   if(error) {
     Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
+    //Serial.println(error.c_str());
+    wprogram = getBasicProgram();
     return;
   }
+  
 
   wprogram.amountWater = doc["amount"]; 
   wprogram.gmtTimezone = doc["gmtTimezone"];
@@ -619,7 +653,10 @@ void changeDefaultProgram(char message[100]){
 
   preferences.begin(PREFS, false);
   preferences.putString("watering_program", message);
-  preferences.end();
+  preferences.end(); 
+
+  Serial.println("default program changed:");
+  printProgram();
 
 }
 
@@ -639,7 +676,7 @@ bool reconnectToBroker(){
   int reconnectionDelay = 1000;
   int connectionAttempts = 0;
   client.setServer(mqttServer, mqttPort);
-  client.setCallback(dataCallback);
+  client.setCallback(callback);
 
   Serial.print("Tentando conexão com o broker ");
   Serial.println(mqttServer);
