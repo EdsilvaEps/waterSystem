@@ -280,7 +280,7 @@ void setup() {
     
 
     // try to get watering program from memory
-    setWProgramFromMemory();
+    wprogram = setWProgramFromMemory();
 
     // try to connect to the network 
     connectToSavedNetwork();
@@ -355,7 +355,7 @@ void loop() {
 
       if(wprogram.automaticWatering) break;
 
-      if(isDeadline){
+      if(isDeadline()){
         state = PERFORMING_WATERING_STATE;
         break;
       }
@@ -424,7 +424,6 @@ void loop() {
 
 // ***************** PROGRAM FUNCTIONS ************************
 
-// TODO: we need to cover the "multiple days" avenue
 // TODO: make sure the entire program from the app gets saved
 
 /* Since after after the first program setting we'll save it to memory 
@@ -432,39 +431,55 @@ void loop() {
  * function gets the json string from memory and makes it default in the 
  * system.
 */
-void setWProgramFromMemory(){
+WateringProgram setWProgramFromMemory(){
+
+  Serial.println("[FUNCTION] setWProgramFromMemory()");
 
   WateringProgram w;
   preferences.begin(PREFS, false);
-  String jsonProgram = preferences.getString("watering_program", "");
-  preferences.end();  
+  w.amountWater = preferences.getInt("amountWater", 0);
+  w.gmtTimezone = preferences.getInt("gmtTimeZone", MANAUSGMT);
+  w.deadlineHour = preferences.getInt("deadlineHour", 0);
+  w.deadlineMinute = preferences.getInt("deadlineMinute", 0);
+  w.deadlineSecond = preferences.getInt("deadlineSecond", 0);
+  w.deadlineDays[0] = preferences.getInt("day0",-1);
+  w.deadlineDays[1] = preferences.getInt("day1",-1);
+  w.deadlineDays[2] = preferences.getInt("day2",-1);
+  w.deadlineDays[3] = preferences.getInt("day3",-1);
+  w.deadlineDays[4] = preferences.getInt("day4",-1);
+  w.deadlineDays[5] = preferences.getInt("day5",-1);
+  w.deadlineDays[6] = preferences.getInt("day6",-1);
+  w.automaticWatering = preferences.getBool("automaticWatering", true);
 
-  char buf[100];
-  jsonProgram.toCharArray(buf,100); 
-  changeDefaultProgram(buf);
+  return w;
   
-  /*StaticJsonDocument<200> doc;
-  DeserializationError err =  deserializeJson(doc, jsonProgram);
+}
 
-  if(err){
-    Serial.print(F("Deserializacao falhou: "));
-    Serial.println(err.c_str());
-  } else{
-
-    w.amountWater = doc["amountWater"];
-    w.gmtTimezone = doc["gmtTimezone"]; //preferences.getInt("gmtTimezone", MANAUSGMT);
-    w.deadlineHour = doc["deadlineHour"]; //preferences.getInt("deadlineHour", 12);
-    w.deadlineMinute = doc["deadlineMinute"];  //preferences.getInt("deadlineMinute", 0);
-    w.deadlineDays = doc["deadlineDays"]; //preferences.getInt("deadlineDay", 0); // sunday
-    w.automaticWatering = doc["automaticWatering"]; //preferences.getBool("automaticWatering", true);
-    
-  }
+void saveProgramToMemory(WateringProgram w){
+  Serial.println("[FUNCTION] saveProgramToMemory()");
   
-  return w;*/
-
+  preferences.begin(PREFS, false);
+  preferences.putInt("deadlineHour",w.deadlineHour);
+  preferences.putInt("deadlineMinute",w.deadlineMinute);
+  preferences.putInt("deadlineSecond", w.deadlineSecond);
+  preferences.putInt("amountWater", w.amountWater);
+  preferences.putInt("gmtTimezone", w.gmtTimezone);
+  preferences.putBool("automaticWatering", w.automaticWatering);
+  preferences.putInt("day0", w.deadlineDays[0]);
+  preferences.putInt("day1", w.deadlineDays[1]);
+  preferences.putInt("day2", w.deadlineDays[2]);
+  preferences.putInt("day3", w.deadlineDays[3]);
+  preferences.putInt("day4", w.deadlineDays[4]);
+  preferences.putInt("day5", w.deadlineDays[5]);
+  preferences.putInt("day6", w.deadlineDays[6]);
+  preferences.end();
+  
+  
 }
 
 
+
+// DEPRECATED
 Program getMemProgram(){
 
   Program n;
@@ -479,6 +494,7 @@ Program getMemProgram(){
   
 }
 
+// DEPRECATED
 void saveProgram(Program program){
   
   preferences.begin(PREFS, false);
@@ -513,9 +529,45 @@ void printProgram(){
     Serial.print("IRRIGATION TIME: ");
     Serial.print(wprogram.deadlineHour);
     Serial.print(":");
-    Serial.println(wprogram.deadlineMinute);
+    Serial.print(wprogram.deadlineMinute);
+    Serial.print(":");
+    Serial.println(wprogram.deadlineSecond);
     Serial.print("AMOUNT OF WATER: ");
     Serial.println(wprogram.amountWater);
+    Serial.print("TIMEZONE: ");
+    Serial.println(wprogram.gmtTimezone);
+    Serial.print("Automatic watering: ");
+    Serial.println(wprogram.automaticWatering);
+    Serial.print("Watering days:");
+    for(int i = 0; i < 7; i++){
+      Serial.print(" ");
+      Serial.print(wprogram.deadlineDays[i]);
+    }
+    Serial.println(" ");
+}
+
+/*  Sometimes no guidelines for watering programs are provided, in those 
+ *  cases we'll just set the settings to half a liter of water dispensed and 
+ *  automatic watering (dry soil). This function returns a watering program 
+ *  with only basic values.
+*/
+WateringProgram getBasicProgram(){
+  Serial.println("getting the basic wateringsystem program");
+  
+  WateringProgram basic;
+  basic.amountWater = 500;
+  basic.gmtTimezone = MANAUSGMT;
+  basic.deadlineHour = 0;
+  basic.deadlineHour = 0;
+  basic.deadlineMinute = 0;
+  basic.deadlineSecond = 0;
+  for (int i; i < 7; i++){
+    basic.deadlineDays[i] = -1;
+  }
+  basic.automaticWatering = true;
+
+  return basic;
+  
 }
 
 // ***************** /PROGRAM FUNCTIONS ************************
@@ -553,28 +605,8 @@ bool publishMsg(const char* path, const char* msg){
   
 }
 
-/*  Sometimes no guidelines for watering programs are provided, in those 
- *  cases we'll just set the settings to half a liter of water dispensed and 
- *  automatic watering (dry soil). This function returns a watering program 
- *  with only basic values.
-*/
-WateringProgram getBasicProgram(){
-  Serial.println("getting the basic wateringsystem program");
-  
-  WateringProgram basic;
-  basic.amountWater = 500;
-  basic.gmtTimezone = MANAUSGMT;
-  basic.deadlineHour = 0;
-  basic.deadlineHour = 0;
-  basic.deadlineMinute = 0;
-  for (int i; i < 7; i++){
-    basic.deadlineDays[i] = -1;
-  }
-  basic.automaticWatering = true;
 
-  return basic;
-  
-}
+
 
 // *********************************************************
 
@@ -593,7 +625,7 @@ void callback(char* topic, byte* payload, unsigned int length){
 
   Serial.println("Callback called");
 
-  char payloadStr[length + 1];
+  char payloadStr[length + 2];
   memset(payloadStr, 0, length + 1);
   strncpy(payloadStr, (char*)payload, length);
   Serial.printf("Data    : dataCallback. Topic : [%s]\n", topic);
@@ -627,7 +659,11 @@ void callback(char* topic, byte* payload, unsigned int length){
 // by the user through the network. After everything, it saves 
 // the json string in memory. If no json is provided, the default 
 // program is set for the basic values.
-void changeDefaultProgram(char message[100]){
+//void changeDefaultProgram(char message[100]){
+void changeDefaultProgram(char* message){
+
+  
+  Serial.println("[FUNCTION]  changeDefaultProgram()"); 
 
   const size_t capacity = JSON_ARRAY_SIZE(7) + JSON_OBJECT_SIZE(6) + 100;
   DynamicJsonDocument doc(capacity);
@@ -641,25 +677,23 @@ void changeDefaultProgram(char message[100]){
   }
   
 
-  wprogram.amountWater = doc["amount"]; 
+  wprogram.amountWater = doc["amountWater"]; 
   wprogram.gmtTimezone = doc["gmtTimezone"];
   wprogram.deadlineHour = doc["deadlineHour"]; 
   wprogram.deadlineMinute = doc["deadlineMinute"]; 
+  wprogram.deadlineSecond = doc["deadlineSecond"];
   JsonArray dataDays = doc["deadlineDays"];
   for (int i = 0; i < 7; i++){
     wprogram.deadlineDays[i] = dataDays[i]; 
   }
   wprogram.automaticWatering = doc["automaticWatering"];
 
-  preferences.begin(PREFS, false);
-  preferences.putString("watering_program", message);
-  preferences.end(); 
-
   Serial.println("default program changed:");
+  saveProgramToMemory(wprogram);
   printProgram();
+  
 
 }
-
 
 // **********************************************************
 
@@ -725,7 +759,8 @@ bool reconnectToBroker(){
 // the default watering program deadline.
 bool isDeadline(){
   if ((wprogram.deadlineHour == timeClient.getHours()) && (wprogram.deadlineMinute == timeClient.getMinutes())){
-    return true;
+    if(wprogram.deadlineSecond == timeClient.getSeconds()) return true;
+    //return true;
   }
 
   return false;

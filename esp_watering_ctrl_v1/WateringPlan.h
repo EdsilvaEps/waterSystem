@@ -16,9 +16,10 @@ extern "C" {
 /* expected json format for WateringProgram
  * {
   "amountWater": 1000,
-  "gmtTimezone": -4,
+  "gmtTimezone": -14400,
   "deadlineHour": 12,
   "deadlineMinute": 0,
+  "deadlineSecond": 10,
   "deadlineDays": [
     0,
     2,
@@ -48,6 +49,7 @@ typedef struct{
   int gmtTimezone;
   int deadlineHour;
   int deadlineMinute;
+  int deadlineSecond;
   int deadlineDays[7];
   bool automaticWatering;
 } WateringProgram;
