@@ -755,12 +755,21 @@ bool reconnectToBroker(){
 // ***************** RTC TIME REGISTERING AND PUMP CONTROL **********
 
 // Since we need to check for the deadline of the watering action
-// this function checks if current hour and minute match with 
+// this function checks if current day, hour, minute and second match with 
 // the default watering program deadline.
 bool isDeadline(){
+  int weekDay = timeClient.getDay();
+  bool isDay = false;
+  for(int i=0; i<7; i++){
+
+    if(weekDay == wprogram.deadlineDays[i]) isDay = true;
+    
+  }
+
+  if(!isDay) return false;
+  
   if ((wprogram.deadlineHour == timeClient.getHours()) && (wprogram.deadlineMinute == timeClient.getMinutes())){
     if(wprogram.deadlineSecond == timeClient.getSeconds()) return true;
-    //return true;
   }
 
   return false;
@@ -775,6 +784,7 @@ bool isDeadline(){
  * 
  * returns void
  */
+ /*
 void countTime(){
 
   if(RTC.second()!=lastsecond && TODvalid) //We want to perform this loop on the second, each second
@@ -816,11 +826,13 @@ void countTime(){
      if(RTC.begin(ssid,pwd))TODvalid=true; 
    }
 }
+*/
 
 /**
  * handles the decrementing of the hour and minute counters 
  * as well as what to do after they reach 0
  */
+ /*
 void decrementCounter(){
 
   int remMins = currProgram.deadlineMinutes;
@@ -848,7 +860,7 @@ void decrementCounter(){
        * - request the next watering time from server
        * - send status data to the server
       */
-
+/*
       pumpAction(currProgram.amount);
       currProgram = getMemProgram();
     
@@ -867,7 +879,7 @@ void decrementCounter(){
  
   
 }
-  
+ */ 
 
 // ***************** /RTC TIME REGISTERING AND PUMP CONTROL **********
 
