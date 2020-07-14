@@ -137,24 +137,13 @@ bool debounce[3] = {false, false, false}; // debounce vars for the 3 lvl sensors
 
 // ************************************************
 
-
-//****** SETUP OF RTC MODULE ***************
-
-template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; } //Sets up serial streaming Serial<<"text"<<variable;
-TOD RTC; //Instantiate Time of Day class TOD as RTC
-uint8_t lastminute=0;
-uint8_t lastsecond=0;
-char printbuffer[50];
-bool TODvalid=false;
-
-//****** /SETUP OF RTC MODULE ***************
-
 // ***** SCHEDULE & WATERING VARIABLES *******
-// TODO :  remove these time variables when the new wprogram is implemented
-int current_interval = 0;
-uint8_t deadline_hour = 0;
-uint8_t deadline_minute = 0;
-long int newAmount = 0;
+
+// amount of the times the esp32 will retry the update the clock
+// before restarting 
+const int maxAttemptsAtScheduling = 3;
+int attemptsAtScheduling = 0;
+
 volatile unsigned int waterLevel = 0; // modified by level interruptions
 // variables to track the sensors 
 bool lv1 = false;
@@ -350,8 +339,15 @@ void loop() {
         Serial.println(timeClient.getMinutes());
         Serial.println(timeClient.getSeconds());
         Serial.println(timeClient.getDay());
-      
-      } //else Serial.println("relogio alinhado...");
+
+        // if the clock cant be updated after some tries, restart board
+        attemptsAtScheduling++;
+        if(attemptsAtScheduling==maxAttemptsAtScheduling){
+          ESP.restart();
+        }
+
+              
+      } else attemptsAtScheduling = 0;
 
       if(wprogram.automaticWatering) break;
 
@@ -402,6 +398,7 @@ void loop() {
      // here watering will happen when conditions are met
      // this part is skipped for now
      Serial.println("realizando regagem.");
+     publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
      pumpAction(wprogram.amountWater);
      state = CHECK_CONNECTION_STATE; // restart cicle
       
@@ -477,34 +474,6 @@ void saveProgramToMemory(WateringProgram w){
   
 }
 
-
-
-// DEPRECATED
-Program getMemProgram(){
-
-  Program n;
-  
-  preferences.begin(PREFS, false);
-  n.deadlineHours = preferences.getInt("deadlineHours", 0);
-  n.deadlineMinutes = preferences.getInt("deadlineMinutes", 0);
-  n.amount = preferences.getInt("amount",0);
-  preferences.end();
-
-  return n;
-  
-}
-
-// DEPRECATED
-void saveProgram(Program program){
-  
-  preferences.begin(PREFS, false);
-  preferences.putInt("deadlineHours",program.deadlineHours);
-  preferences.putInt("deadlineMinutes",program.deadlineMinutes);
-  preferences.putInt("amount", program.amount);
-  preferences.end();
-  
-  
-}
 
 void pumpAction(long int quantity){
 
@@ -640,6 +609,7 @@ void callback(char* topic, byte* payload, unsigned int length){
   if(isPath(topic, subscribeCtrlPath)) {
     state = PERFORMING_WATERING_STATE;
     publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
+    pumpAction(wprogram.amountWater);
   }
 
   if(isPath(topic, setupWateringProgram)) changeDefaultProgram(payloadStr);

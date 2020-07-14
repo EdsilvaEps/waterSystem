@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+
+        <item
+            android:id="@+id/createmode"
+            android:icon="@drawable/ic_add"
+            android:title="@string/create_mode" />
+        <item
+            android:id="@+id/select_mode"
+            android:icon="@drawable/ic_selection"
+            android:title="@string/selection_mode" />
+        <item
+            android:id="@+id/reports"
+            android:icon="@drawable/ic_reports"
+            android:title="@string/reports" />
+
+        <item
+            android:id="@+id/configs"
+            android:icon="@drawable/ic_config"
+            android:title="@string/config" />
+        <item
+            android:id="@+id/logout"
+            android:icon="@drawable/ic_logout"
+            android:title="@string/logout" />
+    </group>
+
+
+</menu>

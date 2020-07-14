@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="#0e1244"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/title_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/title_text"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        />
+
+    <EditText
+        android:id="@+id/title_edittext"
+        android:layout_width="match_parent"
+        android:layout_height="37dp"
+        android:hint="@string/title_placeholder"
+        app:layout_constraintTop_toBottomOf="@id/title_text"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintVertical_bias="0.0"
+        />
+
+    <TextView
+        android:id="@+id/description_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/description_text"
+        app:layout_constraintTop_toBottomOf="@+id/title_edittext"
+        />
+
+    <EditText
+        android:id="@+id/description_edittext"
+        android:layout_width="match_parent"
+        android:layout_height="37dp"
+        android:layout_marginBottom="408dp"
+        android:hint="@string/description_placeholder"
+        app:layout_constraintTop_toBottomOf="@id/description_text"
+        />
+
+    <TextView
+        android:id="@+id/textView12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/interval_selection"
+        app:layout_constraintTop_toBottomOf="@id/description_edittext"
+        />
+
+    <Spinner
+        android:id="@+id/quantity_choice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:spinnerMode="dropdown"
+        app:layout_constraintTop_toBottomOf="@id/textView12"
+        >
+
+    </Spinner>
+
+    <TextView
+        android:id="@+id/amount_text1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="With"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/quantity_choice"
+        app:layout_constraintVertical_bias="0.046"
+        />
+
+    <Spinner
+        android:id="@+id/amount_choice"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:spinnerMode="dropdown"
+
+        app:layout_constraintTop_toBottomOf="@id/amount_text1"
+        app:layout_constraintHorizontal_bias="0.1"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        >
+
+    </Spinner>
+
+    <TextView
+        android:id="@+id/amount_text2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Water"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/amount_choice"
+        app:layout_constraintVertical_bias="0.01"
+        app:layout_constraintHorizontal_bias="0.3"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        />
+
+    <Button
+        android:id="@+id/save_and_use"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save and Use"
+
+        app:layout_constraintTop_toBottomOf="@+id/amount_text2"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.99"/>
+
+    <Button
+        android:id="@+id/save"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save"
+        app:layout_constraintLeft_toRightOf="@+id/save_and_use"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.99"
+        app:layout_constraintTop_toBottomOf="@+id/amount_text2"
+      />
+
+    <Button
+        android:id="@+id/cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cancel"
+        app:layout_constraintLeft_toRightOf="@+id/save"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.99"
+        app:layout_constraintTop_toBottomOf="@+id/amount_text2"
+        />
+
+
+</android.support.constraint.ConstraintLayout>

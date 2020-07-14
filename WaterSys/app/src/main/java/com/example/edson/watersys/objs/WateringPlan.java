@@ -1,0 +1,165 @@
+package com.example.edson.watersys.objs;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.sql.Time;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Object class that represents a single watering plan with
+ * wth their features
+ */
+public class WateringPlan {
+    private int id;
+    private String title;
+    private Time   time;
+    private ArrayList<String> days;
+    private Integer amount;
+    private Boolean active;
+    private Integer timezone;
+
+
+    public WateringPlan(){
+
+    }
+
+    public WateringPlan(int id, String title, Time time, ArrayList<String> days, int amount){
+        this.setId(id);
+        this.setTitle(title);
+        this.setTime(time);
+        this.setDays(days);
+        this.setAmount(amount);
+        this.active = false;
+        this.timezone = -14400; // Manaus tz (gmt -4)
+    }
+
+    public WateringPlan(int id, String title, Time time, String days, int amount){
+        this.setId(id);
+        this.setTitle(title);
+        this.setTime(time);
+        this.setDaysFromString(days);
+        this.setAmount(amount);
+        this.active = false;
+
+    }
+
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public Time getTime() {
+        return time;
+    }
+
+    public Boolean isActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public void setTime(Time time) {
+        this.time = time;
+    }
+
+    public ArrayList<String> getDays() {
+        return days;
+    }
+
+    public void setDays(ArrayList<String> days) {
+        this.days = days;
+    }
+
+    public Integer getAmount() {
+        return amount;
+    }
+
+    public void setAmount(Integer amount) {
+        this.amount = amount;
+    }
+
+    public String getStringOfDays() {
+        String daysString = "";
+        for(String day : this.days){
+            daysString += day;
+            daysString += ",";
+        }
+
+        return daysString;
+    }
+
+    public void setDaysFromString(String daysString){
+        Pattern pattern = Pattern.compile("(\\w+),");
+        Matcher matcher = pattern.matcher(daysString);
+        while (matcher.find()){
+            System.out.println(matcher.group());
+        }
+
+        // temporary until we figure the regex out
+        ArrayList<String> weekdays = new ArrayList<String>();
+        weekdays.add("Mon");
+        weekdays.add("Tue");
+        weekdays.add("Wed");
+        weekdays.add("Thu");
+        weekdays.add("Fri");
+        this.days = weekdays;
+
+    }
+
+
+    public String getJsonString(){
+
+        // codificando o array de dias
+        int[] weekDays = new int[]{-1,-1,-1,-1,-1,-1,-1};
+        int i = 0;
+
+        for(String day : this.days){
+            if(day.equals("Sun")) weekDays[i] = 0;
+            if(day.equals("Mon")) weekDays[i] = 1;
+            if(day.equals("Tue")) weekDays[i] = 2;
+            if(day.equals("Wed")) weekDays[i] = 3;
+            if(day.equals("Thu")) weekDays[i] = 4;
+            if(day.equals("Fri")) weekDays[i] = 5;
+            if(day.equals("Sat")) weekDays[i] = 6;
+            i ++;
+        }
+
+        JSONObject obj = new JSONObject();
+
+
+
+        try {
+            obj.put("amountWater", this.amount);
+            obj.put("gmtTimezone", this.timezone);
+            obj.put("deadlineHour", this.time.getHours());
+            obj.put("deadlineMinute", this.time.getMinutes());
+            obj.put("deadlineSecond", this.time.getSeconds());
+            obj.put("deadlineDays", weekDays);
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return obj.toString();
+
+
+    }
+
+}

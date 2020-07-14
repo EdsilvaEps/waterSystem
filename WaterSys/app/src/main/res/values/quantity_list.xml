@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="quantity_choice_array">
+        <item>a tiny bit of</item>
+        <item>a small amount of</item>
+        <item>just enough</item>
+        <item>a lot of</item>
+        <item>a big amount of</item>
+    </string-array>
+</resources>

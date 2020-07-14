@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+   <string-array name="interval_array_list">
+       <item>twice a day</item>
+       <item>daily</item>
+       <item>5 times a week</item>
+       <item>4 times a week</item>
+       <item>3 times a week</item>
+       <item>twice a week</item>
+       <item>weekly</item>
+   </string-array>
+</resources>
