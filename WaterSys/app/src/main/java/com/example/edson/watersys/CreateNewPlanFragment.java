@@ -212,7 +212,7 @@ public class CreateNewPlanFragment extends Fragment {
             if(days.size() < 7){
                 int fillIndexes = 7 - days.size();
                 for(int i = 0; i < fillIndexes; i++){
-                    days.add(null);
+                    days.add("");
                 }
             }
 

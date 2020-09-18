@@ -43,6 +43,7 @@ import com.example.edson.watersys.database.DBHadler;
 import com.example.edson.watersys.objs.WateringPlan;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
@@ -220,12 +221,13 @@ public class MainC extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // send message to broker if connected
-                if(webService.isConnected()){
-                    webService.publishToTopic(Constants.dispense_water_route, 0, "1");
-                } else{
-                    pendingMsg = Constants.dispense_water_route;
-                    startMqtt();
-                }
+                webService.publishToTopic(Constants.dispense_water_route, 0, "1");
+                //if(webService.isConnected()){
+                //    webService.publishToTopic(Constants.dispense_water_route, 0, "1");
+                //} else{
+                    //pendingMsg = Constants.dispense_water_route;
+                    //startMqtt();
+                //}
             }
         });
 

@@ -29,6 +29,7 @@ import com.example.edson.watersys.database.DBHadler;
 import com.example.edson.watersys.objs.WateringPlan;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
@@ -268,7 +269,7 @@ public class PlanSelectionFragment extends Fragment {
 
                         // send data about change to broker
                         if(webService.isConnected()){
-
+                            Log.w(TAG, "service connected, sending message...");
                             webService.publishToTopic(Constants.change_program, 0, plan.getJsonString());
 
                             //webService.publishToTopic(Constants.schedule_route, 0, plan.getTime().toString());

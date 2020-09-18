@@ -21,7 +21,7 @@ public interface Constants {
 
 
 
-    // Message types sent from the BluetoothChatService Handler
+    // Message types sent fro  m the BluetoothChatService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
     public static final int MESSAGE_READ = 2;
     public static final int MESSAGE_WRITE = 3;

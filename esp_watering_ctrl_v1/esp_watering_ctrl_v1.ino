@@ -4,13 +4,13 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
-#include <Adafruit_GFX.h> // Core graphics library
-#include <Adafruit_ST7735.h> // Hardware-specific library
+//#include <Adafruit_GFX.h> // Core graphics library
+//#include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
 #include <PubSubClient.h>
 //#include "BluetoothSerial.h"
 #include <Preferences.h>
-#include "TOD.h"
+//#include "TOD.h"
 #include "WateringPlan.h"
 
 #define PREFS "my-app"
@@ -139,10 +139,23 @@ bool debounce[3] = {false, false, false}; // debounce vars for the 3 lvl sensors
 
 // ***** SCHEDULE & WATERING VARIABLES *******
 
+<<<<<<< HEAD
 // amount of the times the esp32 will retry the update the clock
 // before restarting 
 const int maxAttemptsAtScheduling = 3;
 int attemptsAtScheduling = 0;
+=======
+//****** SETUP OF RTC MODULE ***************
+
+/*template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; } //Sets up serial streaming Serial<<"text"<<variable;
+TOD RTC; //Instantiate Time of Day class TOD as RTC
+uint8_t lastminute=0;
+uint8_t lastsecond=0;
+char printbuffer[50];
+bool TODvalid=false; */
+
+//****** /SETUP OF RTC MODULE ***************
+>>>>>>> 190476821fc17346c0f27dc5f71b28d2fb393dae
 
 volatile unsigned int waterLevel = 0; // modified by level interruptions
 // variables to track the sensors 
@@ -150,11 +163,11 @@ bool lv1 = false;
 bool lv2 = false;
 bool lv3 = false;
 
-// TODO: remove this reference when the new program 
-// is implemented
-Program currProgram;
-
 WateringProgram wprogram;
+
+int soilSensorPin = 34; // GPIO 34 (Analog ADC1_CH6) 
+int drySoilThreshold = 3800;
+int soilHumidity = 0;
 
 // ***** /SCHEDULE & WATERING VARIABLES *******
 
@@ -252,6 +265,7 @@ void setup() {
 
     //pinMode(LED_BUILTIN, OUTPUT);
     pinMode(pumpPin, OUTPUT);
+    pinMode(soilSensorPin, INPUT);
 
     // configuring interruption pins
     pinMode(level1Interrupt, INPUT_PULLUP);
@@ -388,7 +402,23 @@ void loop() {
       // TODO: instead of using interruptions, we can check the state 
       // of the other level sensors in previous times to assure if tank
       // is going up or down.
-      //Serial.println("sensor check state");
+
+      /* if automatic watering is enabed, the "verifySoilHumidty" function
+         shall water the plants when above a certain dryness threshold, otherwise the 
+         values of soil sensor will be simply registered on a global var.
+      */
+      if(wprogram.automaticWatering == true){
+        verifySoilHumidity();
+        //soilHumidity = analogRead(soilSensorPin);
+        //Serial.println(soilHumidity);
+      } 
+
+      else{
+        
+        soilHumidity = analogRead(soilSensorPin);
+        Serial.println(soilHumidity);
+      }
+      
       state = CHECK_CONNECTION_STATE;
       //delay(500);
 
@@ -418,6 +448,23 @@ void loop() {
   
 }
 // ***************** /LOOP *********************************
+
+/* Simple function to verify the soil humidity, if above a certain
+   threshold, meaning a dry soil, water will be pumped into the plant.
+   (test the threshold values with sensor inside plant */
+void verifySoilHumidity(){
+
+  soilHumidity = analogRead(soilSensorPin);
+  Serial.print("Soil humidity: ");
+  Serial.println(soilHumidity);
+
+  if(soilHumidity > drySoilThreshold){
+
+    pumpAction(wprogram.amountWater);
+    
+  }
+
+}
 
 // ***************** PROGRAM FUNCTIONS ************************
 

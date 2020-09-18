@@ -5,6 +5,7 @@ import org.json.JSONObject;
 
 import java.sql.Time;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -131,6 +132,7 @@ public class WateringPlan {
         int i = 0;
 
         for(String day : this.days){
+            if(day == null) break;
             if(day.equals("Sun")) weekDays[i] = 0;
             if(day.equals("Mon")) weekDays[i] = 1;
             if(day.equals("Tue")) weekDays[i] = 2;
@@ -151,7 +153,7 @@ public class WateringPlan {
             obj.put("deadlineHour", this.time.getHours());
             obj.put("deadlineMinute", this.time.getMinutes());
             obj.put("deadlineSecond", this.time.getSeconds());
-            obj.put("deadlineDays", weekDays);
+            obj.put("deadlineDays", Arrays.toString(weekDays));
 
         } catch (JSONException e) {
             e.printStackTrace();
