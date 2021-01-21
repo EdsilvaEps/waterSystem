@@ -73,7 +73,7 @@ const char* ca_cert = \
 
 
 String network = "Os Silva Wi Fi";
-String password= "c8906d2932";
+String password= "f0r@c0ntr0l3";
 bool conncted = false;
 
 volatile int interruptCounter = 0;
@@ -139,23 +139,10 @@ bool debounce[3] = {false, false, false}; // debounce vars for the 3 lvl sensors
 
 // ***** SCHEDULE & WATERING VARIABLES *******
 
-<<<<<<< HEAD
 // amount of the times the esp32 will retry the update the clock
 // before restarting 
 const int maxAttemptsAtScheduling = 3;
 int attemptsAtScheduling = 0;
-=======
-//****** SETUP OF RTC MODULE ***************
-
-/*template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; } //Sets up serial streaming Serial<<"text"<<variable;
-TOD RTC; //Instantiate Time of Day class TOD as RTC
-uint8_t lastminute=0;
-uint8_t lastsecond=0;
-char printbuffer[50];
-bool TODvalid=false; */
-
-//****** /SETUP OF RTC MODULE ***************
->>>>>>> 190476821fc17346c0f27dc5f71b28d2fb393dae
 
 volatile unsigned int waterLevel = 0; // modified by level interruptions
 // variables to track the sensors 
@@ -174,6 +161,7 @@ int soilHumidity = 0;
 int availableNets = 0;
 String inData = "";
 
+bool isWatering = false;
 
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux =  portMUX_INITIALIZER_UNLOCKED;
@@ -299,6 +287,7 @@ void setup() {
     timeClient.begin();
     timeClient.setTimeOffset(wprogram.gmtTimezone);
 
+
     
 }
 
@@ -408,7 +397,7 @@ void loop() {
          values of soil sensor will be simply registered on a global var.
       */
       if(wprogram.automaticWatering == true){
-        verifySoilHumidity();
+        //verifySoilHumidity();
         //soilHumidity = analogRead(soilSensorPin);
         //Serial.println(soilHumidity);
       } 
@@ -416,7 +405,7 @@ void loop() {
       else{
         
         soilHumidity = analogRead(soilSensorPin);
-        Serial.println(soilHumidity);
+        //Serial.println(soilHumidity);
       }
       
       state = CHECK_CONNECTION_STATE;
@@ -510,11 +499,17 @@ void saveProgramToMemory(WateringProgram w){
   preferences.putInt("gmtTimezone", w.gmtTimezone);
   preferences.putBool("automaticWatering", w.automaticWatering);
   preferences.putInt("day0", w.deadlineDays[0]);
+  Serial.println(w.deadlineDays[1]);
   preferences.putInt("day1", w.deadlineDays[1]);
+  Serial.println(w.deadlineDays[2]);
   preferences.putInt("day2", w.deadlineDays[2]);
+  Serial.println(w.deadlineDays[3]);
   preferences.putInt("day3", w.deadlineDays[3]);
+  Serial.println(w.deadlineDays[4]);
   preferences.putInt("day4", w.deadlineDays[4]);
+  Serial.println(w.deadlineDays[5]);
   preferences.putInt("day5", w.deadlineDays[5]);
+  Serial.println(w.deadlineDays[6]);
   preferences.putInt("day6", w.deadlineDays[6]);
   preferences.end();
   
@@ -525,18 +520,42 @@ void saveProgramToMemory(WateringProgram w){
 void pumpAction(long int quantity){
 
   /*
-   * Parting from inicial calculations assuming the ration
+   * Starting from inicial calculations assuming the ration
    * pumping/Voltage is linear and proportional we calculate
    * that under 9.0V we'll pump 49.5mL/s (test this).
    * 
    */
 
   // quantity is the value in mL to be pumped.
-  Serial.println("realizando regagem");
+  if(!isWatering){
+    Serial.println("realizando regagem");
+    int pumpDelay = (quantity/49)*1000;
+    isWatering = true;
+
+    // create an async task for pumping water
+    xTaskCreate(
+                  pumpTask,           // task function
+                  "pumpTask",         // string w/ name of task
+                  10000,              // stack size in bytes
+                  (void *)&pumpDelay, // parameter passed as input
+                  1,                  // priority of the task
+                  NULL);              // task handle
+
+        
+  }
+  else Serial.println("irrigation in progress");
   
+}
+
+void pumpTask(void *delayTime){
+  int dt = *((int *) delayTime); 
   digitalWrite(pumpPin, HIGH);
-  delay((quantity/49)*1000); // rounded to 49
+  delay(dt);
   digitalWrite(pumpPin, LOW);
+  Serial.println("irrigation finished");
+  Serial.println(dt);
+  isWatering = false;
+  vTaskDelete( NULL );
 }
 
 // just prints the current program to the serial
@@ -701,6 +720,7 @@ void changeDefaultProgram(char* message){
   wprogram.deadlineSecond = doc["deadlineSecond"];
   JsonArray dataDays = doc["deadlineDays"];
   for (int i = 0; i < 7; i++){
+    Serial.println((int)dataDays[i]);
     wprogram.deadlineDays[i] = dataDays[i]; 
   }
   wprogram.automaticWatering = doc["automaticWatering"];
@@ -793,110 +813,6 @@ bool isDeadline(){
 }
 
 
-/**
- * Continuously checks the time to see if the deadline
- * for the next irrigation has been reached. If so, sends
- * info data to the server, gets newest data, performs
- * irrigation and sets next irrigation deadline.
- * 
- * returns void
- */
- /*
-void countTime(){
-
-  if(RTC.second()!=lastsecond && TODvalid) //We want to perform this loop on the second, each second
-  {
-    lastsecond=RTC.second();
-    sprintf(printbuffer,"   UTC Time:%02i:%02i:%02i.%03i\n", RTC.hour(), RTC.minute(),RTC.second(),RTC.millisec());
-    Serial<<printbuffer; 
-  }
-
-  // every minute check the schedule
-  if(RTC.minute() != lastminute && TODvalid){
-    lastminute=RTC.minute();
-
-    // if any debounce is on, release them
-    if(debounce[0] || debounce[1] || debounce[2]){
-
-      char level[3];
-      sprintf(level, "%d", waterLevel);
-      publishMsg(publishLevelPath, level);
-
-      debounce[0] = false;
-      debounce[1] = false;
-      debounce[2] = false;
-
-    }
-      
-    
-    decrementCounter();
-    printProgram();
-    
-  }
-    
-  if(!TODvalid) //if we still havent got a valid TOD, hit the NIST time server 
-  {
-     char ssid[20];
-     char pwd[20];
-     network.toCharArray(ssid,20);
-     password.toCharArray(pwd,20);
-     if(RTC.begin(ssid,pwd))TODvalid=true; 
-   }
-}
-*/
-
-/**
- * handles the decrementing of the hour and minute counters 
- * as well as what to do after they reach 0
- */
- /*
-void decrementCounter(){
-
-  int remMins = currProgram.deadlineMinutes;
-  int remHours = currProgram.deadlineHours;
-
-  
-  if(remMins > 0){
-
-    currProgram.deadlineMinutes = remMins - 1;
-    
-  } else {
-
-    if(remHours > 0){
-      // decrement hours and reset minutes counter
-      currProgram.deadlineHours = remHours - 1;
-      currProgram.deadlineMinutes = 60;
-      
-    }
-
-    else {
-      /*
-       * if 0 hours and 0 minutes remaining we :
-       * - turn the pump on
-       * - reset the counter with the last saved data
-       * - request the next watering time from server
-       * - send status data to the server
-      */
-/*
-      pumpAction(currProgram.amount);
-      currProgram = getMemProgram();
-    
-      if(publishMsg(publishReqNextSchedule, "1")){
-
-        char level[3];
-        sprintf(level, "%d", waterLevel);
-        publishMsg(publishLevelPath, level);
-        publishMsg(publishReport, wateredMessage);
-        
-      }
-            
-    }
-    
-  }
- 
-  
-}
- */ 
 
 // ***************** /RTC TIME REGISTERING AND PUMP CONTROL **********
 
@@ -936,67 +852,7 @@ bool connectedAfterTimeout(String net, String pwd){
 
 }
 
-// DEPRECATED
-/*
-void checkConnection(String net, String pwd){  
-    int attemptsAcc = 0; // attempts to connect
-  
-    while(!isConnected() && (attemptsAcc < 10)){
-      delay(500);
-      Serial.print("connectando com wifi ");
-      Serial.println(net);
-      attemptsAcc++;
-      
-    }
-  
-    /* the following code lights up the esp's built-in led if it manages to connect
-    to a wireless network, otherwise, it'll start an interruption routine that blinks
-    the led every half second, announcing that we cant connect, the blinking it assynchronous
-    because if we cant connect to wifi, we'll start bluetooth service to let the user input
-    data for connecting to another network*/
-    /*
-    if(isConnected()){
-      conncted = true;
 
-      Serial.print("Connectado com a rede ");
-      Serial.println(net);
-      //digitalWrite(LED_BUILTIN, HIGH); // Uncomment if we are on ESP32 DOIT 
-      
-      
-      // if we have our timer enabled, disable it 
-      if(timer != NULL){
-        timerAlarmDisable(timer);
-        timerDetachInterrupt(timer);
-      }
-      saveCredentials(net, pwd); // if connection successful, save details to memory
-      
-      char ssid[20];
-      char pwd[20];
-      network.toCharArray(ssid,20);
-      password.toCharArray(pwd,20);
-      if(RTC.begin(ssid,pwd))TODvalid=true;   //.begin(ssid,password) requires SSID and password of your home access point
-                                               //All the action is in this one function.  It connects to access point, sends
-                                               //an NTP time query, and receives the time mark. Returns TRUE on success.
-      lastminute=RTC.minute();
-
-         
-    } else{
-      conncted = false;
-      Serial.println("Failed to connect to network");
-      timer = timerBegin(0,80,true); // prescaler value
-      /* below attaching timer interrupt with timer variable as first arg
-      onTimer function as second ard and true for interrupt 
-      generated on edge type */
-      /*
-      timerAttachInterrupt(timer, &onTimer, true);
-      timerAlarmWrite(timer,500000, true); // generate an interrupt every 0.5 second
-      timerAlarmEnable(timer); // enable interruption 
-      scanNets();
-      scanNets();
-    }
-  
-}
-*/
 
 void checkNetStatus(){
   // if we are still connected just light the builtin led
