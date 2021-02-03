@@ -135,7 +135,7 @@ public class MainC extends AppCompatActivity {
 
 
         startMqtt();
-        setConnectionStatus(webService.isConnected());
+        //setConnectionStatus(webService.isConnected());
         setupCurrentPlanUI();
         /* we need the measurement of the screen to set the size of the status
         * toolbar. When we get it, we set mainToolbar's minimum height to 10% of that size*/
@@ -321,7 +321,7 @@ public class MainC extends AppCompatActivity {
         webService.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
-                setConnectionStatus(true);
+                //setConnectionStatus(true);
                 webService.publishToTopic(Constants.report, 0, "1");
                 pendingMsgHander(); // check if there are pending messages to be sent
             }
@@ -329,12 +329,12 @@ public class MainC extends AppCompatActivity {
             @Override
             public void connectionLost(Throwable cause) {
                 // do something
-                setConnectionStatus(false);
+                //setConnectionStatus(false);
             }
 
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                setConnectionStatus(true);
+                //setConnectionStatus(true);
 
                 // decodes and interprets received messages
                 if(topic.equals(Constants.level_route)){
@@ -357,7 +357,7 @@ public class MainC extends AppCompatActivity {
      * change the UI according to the connection status
      * @param isConnected
      */
-    public void setConnectionStatus(Boolean isConnected){
+    /*public void setConnectionStatus(Boolean isConnected){
         if (isConnected){
             connectionStatusTxt.setText(getText(R.string.status_connected_txt));
             connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(), R.color.connected));
@@ -371,7 +371,7 @@ public class MainC extends AppCompatActivity {
         }
 
 
-    }
+    }*/
 
 
     // basically saves level data

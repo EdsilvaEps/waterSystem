@@ -20,6 +20,7 @@ public class WateringPlan {
     private ArrayList<String> days;
     private Integer amount;
     private Boolean active;
+    private Boolean autoWatering;
     private Integer timezone;
 
 
@@ -35,6 +36,8 @@ public class WateringPlan {
         this.setAmount(amount);
         this.active = false;
         this.timezone = -14400; // Manaus tz (gmt -4)
+        this.autoWatering = false;
+
     }
 
     public WateringPlan(int id, String title, Time time, String days, int amount){
@@ -44,6 +47,17 @@ public class WateringPlan {
         this.setDaysFromString(days);
         this.setAmount(amount);
         this.active = false;
+        this.autoWatering = false;
+    }
+
+    // automatic watering
+    public WateringPlan(int id){
+        this.setId(id);
+        this.setTitle("auto watering");
+        this.setAmount(1000);
+        this.active = false;
+        this.timezone = -14400; // Manaus tz (gmt -4)
+        this.autoWatering = true;
 
     }
 
@@ -96,6 +110,10 @@ public class WateringPlan {
         this.amount = amount;
     }
 
+    public  Boolean getAutomatic(){ return autoWatering; }
+
+    public void setAutoWatering(Boolean auto){ this.autoWatering = auto; }
+
     public String getStringOfDays() {
         String daysString = "";
         for(String day : this.days){
@@ -124,6 +142,33 @@ public class WateringPlan {
 
     }
 
+    // get json string for automatic watering
+    public String getAutoJsonString(){
+
+        // codificando o array de dias
+        int[] weekDays = new int[]{-1,-1,-1,-1,-1,-1,-1};
+
+        JSONObject obj = new JSONObject();
+        String regex = "(?<=\"deadlineDays\":)\"|\"(?=\\}\\])";
+
+        try {
+            obj.put("amountWater", this.amount);
+            obj.put("gmtTimezone", this.timezone);
+            obj.put("deadlineHour", 0);
+            obj.put("deadlineMinute", 0);
+            obj.put("deadlineSecond", 0);
+            obj.put("deadlineDays", Arrays.toString(weekDays));
+            obj.put("automaticWatering", true);
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        String msg = obj.toString().replaceAll(regex, "");
+
+        return msg;
+
+    }
+
 
     public String getJsonString(){
 
@@ -144,7 +189,7 @@ public class WateringPlan {
         }
 
         JSONObject obj = new JSONObject();
-
+        String regex = "(?<=\"deadlineDays\":)\"|\"(?=\\}\\])";
 
 
         try {
@@ -154,12 +199,14 @@ public class WateringPlan {
             obj.put("deadlineMinute", this.time.getMinutes());
             obj.put("deadlineSecond", this.time.getSeconds());
             obj.put("deadlineDays", Arrays.toString(weekDays));
+            obj.put("automaticWatering", false);
 
         } catch (JSONException e) {
             e.printStackTrace();
         }
+        String msg = obj.toString().replaceAll(regex, "");
 
-        return obj.toString();
+        return msg;
 
 
     }

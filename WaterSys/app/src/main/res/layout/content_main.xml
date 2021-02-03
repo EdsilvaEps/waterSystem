@@ -46,12 +46,13 @@
                 <TextView
                     android:id="@+id/cardconnection_connectiontxt"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="15dp"
+                    android:text="Auto watering is off"
                     android:textColor="@color/darkColor"
+                    app:layout_constraintHorizontal_bias="0.2"
                     app:layout_constraintLeft_toLeftOf="parent"
                     app:layout_constraintRight_toRightOf="parent"
-                    app:layout_constraintHorizontal_bias="0.2"
-                    android:text="You are not connected to the server"/>
+                    tools:layout_editor_absoluteY="4dp" />
 
                 <ImageView
                     android:id="@+id/connectionicon"
