@@ -28,7 +28,7 @@ public class WateringPlan {
 
     }
 
-    public WateringPlan(int id, String title, Time time, ArrayList<String> days, int amount){
+    public WateringPlan(int id, String title, Time time, ArrayList<String> days, int amount, boolean auto){
         this.setId(id);
         this.setTitle(title);
         this.setTime(time);
@@ -36,18 +36,18 @@ public class WateringPlan {
         this.setAmount(amount);
         this.active = false;
         this.timezone = -14400; // Manaus tz (gmt -4)
-        this.autoWatering = false;
+        this.autoWatering = auto;
 
     }
 
-    public WateringPlan(int id, String title, Time time, String days, int amount){
+    public WateringPlan(int id, String title, Time time, String days, int amount, boolean auto){
         this.setId(id);
         this.setTitle(title);
         this.setTime(time);
         this.setDaysFromString(days);
         this.setAmount(amount);
         this.active = false;
-        this.autoWatering = false;
+        this.autoWatering = auto;
     }
 
     // automatic watering
@@ -110,7 +110,7 @@ public class WateringPlan {
         this.amount = amount;
     }
 
-    public  Boolean getAutomatic(){ return autoWatering; }
+    public  Boolean isAutomatic(){ return autoWatering; }
 
     public void setAutoWatering(Boolean auto){ this.autoWatering = auto; }
 

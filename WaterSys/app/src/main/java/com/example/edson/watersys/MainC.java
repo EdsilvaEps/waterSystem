@@ -77,9 +77,10 @@ public class MainC extends AppCompatActivity {
     // plan details
     TextView level_txt;
     TextView plan_txt; // id plan_text
-    TextView time_txt; // id card1_timetxt
-    TextView days_txt; // id card1_daystxt
+    TextView time_aux, time_txt;
+    TextView days_aux, days_txt;
     TextView amount_txt; //id card1_amounttxt
+    TextView autoWat_txt; // automatic watering text, id: auto_wat_text
     DBHadler db;
     List<WateringPlan> plans;
     private SharedPreferences sharedPreferences;
@@ -124,11 +125,14 @@ public class MainC extends AppCompatActivity {
         mDrawerLayout = findViewById(R.id.drawer_layout);
         bottomNavigationView = findViewById(R.id.navigationbar);
         plan_txt = findViewById(R.id.plan_text);
+        time_aux = findViewById(R.id.card1_txt3);
         time_txt = findViewById(R.id.card1_timetxt);
+        days_aux = findViewById(R.id.card1_txt4);
         days_txt = findViewById(R.id.card1_daystxt);
         amount_txt = findViewById(R.id.card1_amounttxt);
         tank_img = findViewById(R.id.tank_img);
         level_txt = findViewById(R.id.card2_leveltxt);
+        autoWat_txt = findViewById(R.id.auto_wat_text);
 
         db = new DBHadler(this);
         plans = new ArrayList<>();
@@ -355,7 +359,7 @@ public class MainC extends AppCompatActivity {
 
     /**
      * change the UI according to the connection status
-     * @param isConnected
+     * @param //isConnected
      */
     /*public void setConnectionStatus(Boolean isConnected){
         if (isConnected){
@@ -409,8 +413,25 @@ public class MainC extends AppCompatActivity {
                         } else sdays += day + " ";
                     }
 
-                    days_txt.setText(sdays);
-                    time_txt.setText(plan.getTime().toString());
+                    if(plan.isAutomatic()){
+                        // if plan is automatic, then dont show days or time
+                        time_aux.setVisibility(View.GONE);
+                        time_txt.setVisibility(View.GONE);
+                        days_aux.setVisibility(View.GONE);
+                        days_txt.setVisibility(View.GONE);
+                        autoWat_txt.setVisibility(View.VISIBLE);
+                    }
+
+                    else{
+                        time_aux.setVisibility(View.VISIBLE);
+                        time_txt.setVisibility(View.VISIBLE);
+                        days_aux.setVisibility(View.VISIBLE);
+                        days_txt.setVisibility(View.VISIBLE);
+                        autoWat_txt.setVisibility(View.GONE);
+                        days_txt.setText(sdays);
+                        time_txt.setText(plan.getTime().toString());
+                    }
+
                     String sAmount = String.valueOf(plan.getAmount()) + " ml";
                     amount_txt.setText(sAmount);
 

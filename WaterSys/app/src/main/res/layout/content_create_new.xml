@@ -59,13 +59,26 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintTop_toBottomOf="@id/formtitle"/>
 
+            <CheckBox
+                android:id="@+id/autowatering"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/colorAccent"
+                android:textColor="@color/colorAccent"
+                android:text="Automatic watering"
+
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/plan_name"
+
+            />
+
             <TextView
                 android:id="@+id/repeat_days_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
                 android:textColor="@color/colorAccent"
-                app:layout_constraintTop_toBottomOf="@id/plan_name"
+                app:layout_constraintTop_toBottomOf="@id/autowatering"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toRightOf="parent"

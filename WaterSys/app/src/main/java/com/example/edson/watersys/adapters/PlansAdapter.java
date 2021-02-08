@@ -42,6 +42,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlansViewHol
         private TextView auxTxt2;
         private TextView auxTxt3;
         private TextView auxTxt4;
+        private TextView auto_txt;
         private Button delete; // id: deletebtn
         private Button update; // id: updatebtn
 
@@ -60,6 +61,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlansViewHol
             auxTxt2 = itemView.findViewById(R.id.card1_txt3);
             auxTxt3 = itemView.findViewById(R.id.card1_txt4);
             auxTxt4 = itemView.findViewById(R.id.card1_txt5);
+            auto_txt = itemView.findViewById(R.id.list_item_auto);
             delete = itemView.findViewById(R.id.deletebtn);
             update = itemView.findViewById(R.id.updatebtn);
 
@@ -69,13 +71,33 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlansViewHol
 
 
         private void bind(WateringPlan plan ,Boolean visible){
-            time.setVisibility(visible ? View.VISIBLE : View.GONE);
-            days.setVisibility(visible ? View.VISIBLE : View.GONE);
+
+            if(plan.isAutomatic()){
+                auto_txt.setVisibility(visible ? View.VISIBLE : View.GONE);
+                auxTxt3.setVisibility(visible ? View.INVISIBLE : View.GONE); // we need this to anchor the buttons
+
+            } else{
+                time.setVisibility(visible ? View.VISIBLE : View.GONE);
+                days.setVisibility(visible ? View.VISIBLE : View.GONE);
+                auxTxt2.setVisibility(visible ? View.VISIBLE : View.GONE);
+                auxTxt3.setVisibility(visible ? View.VISIBLE : View.GONE);
+
+                // concatenating the days
+                String sdays = "";
+                for (String day : plan.getDays()){
+                    if(day == null){
+                        break;
+                    } else sdays += day + " ";
+                }
+
+                time.setText(plan.getTime().toString());
+                days.setText(sdays);
+            }
+
             amount.setVisibility(visible ? View.VISIBLE : View.GONE);
+
             // auxiliary text
             auxTxt1.setVisibility(visible ? View.VISIBLE : View.GONE);
-            auxTxt2.setVisibility(visible ? View.VISIBLE : View.GONE);
-            auxTxt3.setVisibility(visible ? View.VISIBLE : View.GONE);
             auxTxt4.setVisibility(visible ? View.VISIBLE : View.GONE);
             // btns
             delete.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -87,19 +109,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlansViewHol
                 details.setImageResource(R.mipmap.arrow_right_fg);
             }
 
-
-            // concatenating the days
-            String sdays = "";
-            for (String day : plan.getDays()){
-                if(day == null){
-                    break;
-                } else sdays += day + " ";
-            }
-
             title.setText(plan.getTitle());
-            time.setText(plan.getTime().toString());
-            days.setText(sdays);
-
             String sAmount = String.valueOf(plan.getAmount()) + " ml";
             amount.setText(sAmount);
 

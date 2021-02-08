@@ -47,12 +47,13 @@
                     android:id="@+id/cardconnection_connectiontxt"
                     android:layout_width="wrap_content"
                     android:layout_height="15dp"
-                    android:text="Auto watering is off"
+                    android:text="You are not connected"
                     android:textColor="@color/darkColor"
                     app:layout_constraintHorizontal_bias="0.2"
                     app:layout_constraintLeft_toLeftOf="parent"
                     app:layout_constraintRight_toRightOf="parent"
-                    tools:layout_editor_absoluteY="4dp" />
+                    tools:layout_editor_absoluteY="4dp"
+                    tools:ignore="MissingConstraints" />
 
                 <ImageView
                     android:id="@+id/connectionicon"
@@ -144,13 +145,46 @@
                     />
 
                 <TextView
+                    android:id="@+id/card1_txt5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:textStyle="bold"
+                    android:text="Water Amount: "
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintLeft_toLeftOf="parent"/>
+
+                <TextView
+                    android:id="@+id/card1_amounttxt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:text="1L per watering"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintLeft_toRightOf="@+id/card1_txt5"
+
+                    />
+
+                <TextView
+                    android:id="@+id/auto_wat_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:textStyle="bold"
+                    android:text="Automatic watering, sensor-based"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    />
+
+                <TextView
                     android:id="@+id/card1_txt3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@color/darkColor"
                     android:textStyle="bold"
                     android:text="Time: "
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
                     app:layout_constraintLeft_toLeftOf="parent"/>
 
                 <TextView
@@ -159,7 +193,7 @@
                     android:layout_height="wrap_content"
                     android:textColor="@color/darkColor"
                     android:text="00:00 AM"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
                     app:layout_constraintLeft_toRightOf="@+id/card1_txt3"
 
                     />
@@ -185,26 +219,6 @@
 
                     />
 
-                <TextView
-                    android:id="@+id/card1_txt5"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkColor"
-                    android:textStyle="bold"
-                    android:text="Water Amount: "
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
-                    app:layout_constraintLeft_toLeftOf="parent"/>
-
-                <TextView
-                    android:id="@+id/card1_amounttxt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkColor"
-                    android:text="1L per watering"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
-                    app:layout_constraintLeft_toRightOf="@+id/card1_txt5"
-
-                    />
 
 
 

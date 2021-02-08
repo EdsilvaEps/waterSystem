@@ -77,13 +77,48 @@
                     />
 
                 <TextView
+                    android:id="@+id/card1_txt5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:textStyle="bold"
+                    android:text="Water Amount: "
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    android:visibility="gone"
+                    />
+
+                <TextView
+                    android:id="@+id/card1_amounttxt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:text="1L per watering"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintLeft_toRightOf="@+id/card1_txt5"
+                    android:visibility="gone"
+                    />
+
+                <TextView
+                    android:id="@+id/list_item_auto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/darkColor"
+                    android:textStyle="bold"
+                    android:text="Automatic watering, sensor-based"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    android:visibility="gone"
+                    />
+
+                <TextView
                     android:id="@+id/card1_txt3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@color/darkColor"
                     android:textStyle="bold"
                     android:text="Time: "
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
                     app:layout_constraintLeft_toLeftOf="parent"
                     android:visibility="gone"/>
 
@@ -93,7 +128,7 @@
                     android:layout_height="wrap_content"
                     android:textColor="@color/darkColor"
                     android:text="00:00 AM"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt2"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt5"
                     app:layout_constraintLeft_toRightOf="@+id/card1_txt3"
                     android:visibility="gone"
                     />
@@ -121,28 +156,6 @@
                     android:visibility="gone"
                     />
 
-                <TextView
-                    android:id="@+id/card1_txt5"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkColor"
-                    android:textStyle="bold"
-                    android:text="Water Amount: "
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
-                    app:layout_constraintLeft_toLeftOf="parent"
-                    android:visibility="gone"
-                    />
-
-                <TextView
-                    android:id="@+id/card1_amounttxt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkColor"
-                    android:text="1L per watering"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
-                    app:layout_constraintLeft_toRightOf="@+id/card1_txt5"
-                    android:visibility="gone"
-                    />
 
                 <Button
                     android:id="@+id/deletebtn"
@@ -151,7 +164,7 @@
                     android:backgroundTint="#FFF"
                     android:text="DELETE"
                     android:textColor="@color/colorAccent"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_amounttxt"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
                     app:layout_constraintLeft_toLeftOf="parent"
                     android:visibility="gone"
                     />
@@ -163,7 +176,7 @@
                     android:backgroundTint="#FFF"
                     android:text="EDIT"
                     android:textColor="@color/colorAccent"
-                    app:layout_constraintTop_toBottomOf="@+id/card1_amounttxt"
+                    app:layout_constraintTop_toBottomOf="@+id/card1_txt4"
                     app:layout_constraintLeft_toRightOf="@+id/deletebtn"
                     android:visibility="gone"
                     />

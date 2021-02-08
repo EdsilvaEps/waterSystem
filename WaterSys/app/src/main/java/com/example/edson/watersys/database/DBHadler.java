@@ -40,6 +40,8 @@ public class DBHadler extends SQLiteOpenHelper {
     private static final String KEY_DAY_6 = "day6";
     private static final String KEY_DAY_7 = "day7";
 
+    private static final String KEY_AUTO = "auto";
+
 
 
 
@@ -58,7 +60,8 @@ public class DBHadler extends SQLiteOpenHelper {
                 KEY_ID + " INTEGER PRIMARY KEY," + KEY_TITLE + " TEXT," +
                 KEY_TIME + " TEXT,"  + KEY_AMOUNT + " TEXT," + KEY_DAY_1 + " TEXT," +
                 KEY_DAY_2 + " TEXT," + KEY_DAY_3 + " TEXT," + KEY_DAY_4 + " TEXT," +
-                KEY_DAY_5 + " TEXT," + KEY_DAY_6 + " TEXT," + KEY_DAY_7 + " TEXT" + ")";
+                KEY_DAY_5 + " TEXT," + KEY_DAY_6 + " TEXT," + KEY_DAY_7 + " TEXT," +
+                KEY_AUTO + " INTEGER" + ")";
 
         Log.w(TAG, CREATE_PLANS_TABLE);
         db.execSQL(CREATE_PLANS_TABLE);
@@ -91,6 +94,12 @@ public class DBHadler extends SQLiteOpenHelper {
         values.put(KEY_DAY_6, days.get(5));
         values.put(KEY_DAY_7, days.get(6));
 
+        if(plan.isAutomatic()){
+            values.put(KEY_AUTO,1);
+        } else {
+            values.put(KEY_AUTO,0);
+        }
+
 
         // putting the days' values into the database
         /*for(Integer i = 1; i <= 7; i++){
@@ -111,7 +120,7 @@ public class DBHadler extends SQLiteOpenHelper {
     public WateringPlan getPlan(int id){
        SQLiteDatabase db = this.getReadableDatabase();
        Cursor cursor = db.query(TABLE_PLANS, new String[] { KEY_ID, KEY_TITLE,
-       KEY_TIME, KEY_AMOUNT, KEY_DAY_1, KEY_DAY_2, KEY_DAY_3, KEY_DAY_4, KEY_DAY_5, KEY_DAY_6, KEY_DAY_7}, KEY_ID + "=?",
+       KEY_TIME, KEY_AMOUNT, KEY_DAY_1, KEY_DAY_2, KEY_DAY_3, KEY_DAY_4, KEY_DAY_5, KEY_DAY_6, KEY_DAY_7, KEY_AUTO}, KEY_ID + "=?",
        new String[] { String.valueOf(id) }, null, null, null, null);
 
        // get the fields from the database, parse them if necessary
@@ -207,6 +216,7 @@ public class DBHadler extends SQLiteOpenHelper {
         Time time = Time.valueOf(cursor.getString(2));
         //String days = cursor.getString(3); 4
         Integer amount = Integer.parseInt(cursor.getString(3));
+        boolean auto = false;
 
         ArrayList<String> days = new ArrayList<>();
         for(int i = 0; i <= 6; i++){
@@ -214,9 +224,12 @@ public class DBHadler extends SQLiteOpenHelper {
             days.add(cursor.getString(i+4));
 
         }
+        // automatic watering (column 11)
+        if (cursor.getInt(11) == 1){
+            auto = true;
+        } else auto = false;
 
-
-        return new WateringPlan(plan_id, title, time, days, amount);
+        return new WateringPlan(plan_id, title, time, days, amount, auto);
 
     }
 

@@ -16,6 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.SeekBar;
@@ -39,6 +40,7 @@ public class CreateNewPlanFragment extends Fragment {
     private SeekBar amount; // id: amount_bar
     private TextView amountxt; // id: amountquanttext
     private Button timebtn; // id: timebtn
+    private CheckBox auto;
     private RadioButton mon;
     private RadioButton tue;
     private RadioButton wed;
@@ -96,6 +98,7 @@ public class CreateNewPlanFragment extends Fragment {
         amountxt = view.findViewById(R.id.amountquanttext);
         timebtn = view.findViewById(R.id.timebtn);
         bottomNavigationView = view.findViewById(R.id.navigationbar);
+        auto = view.findViewById(R.id.autowatering);
         fin = view.findViewById(R.id.fab);
         mon = view.findViewById(R.id.mon);
         tue = view.findViewById(R.id.tue);
@@ -119,6 +122,30 @@ public class CreateNewPlanFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 saveNew();
+            }
+        });
+
+        auto.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // enable or disable timing settings
+                // depending on auto setting
+                if(auto.isChecked()){
+                    mon.setEnabled(false);
+                    tue.setEnabled(false);
+                    wed.setEnabled(false);
+                    thu.setEnabled(false);
+                    fri.setEnabled(false);
+                    timebtn.setEnabled(false);
+                } else{
+                    mon.setEnabled(true);
+                    tue.setEnabled(true);
+                    wed.setEnabled(true);
+                    thu.setEnabled(true);
+                    fri.setEnabled(true);
+                    timebtn.setEnabled(true);
+
+                }
             }
         });
 
@@ -179,20 +206,24 @@ public class CreateNewPlanFragment extends Fragment {
         String titleVar = "";
         String timeVar;
         Integer amnt = 0;
+        Boolean autowatering = false;
 
         titleVar = title.getText().toString();
         amnt = Integer.valueOf(amountxt.getText().toString());
         timeVar = timebtn.getText().toString();
+        autowatering = auto.isChecked();
 
         ArrayList<String> days = new ArrayList<>();
-        if(mon.isChecked()) days.add("Mon");
-        if(tue.isChecked()) days.add("Tue");
-        if(wed.isChecked()) days.add("Wed");
-        if(thu.isChecked()) days.add("Thu");
-        if(fri.isChecked()) days.add("Fri");
-        if(sat.isChecked()) days.add("Sat");
-        if(sun.isChecked()) days.add("Sun");
 
+        if(!autowatering){
+            if(mon.isChecked()) days.add("Mon");
+            if(tue.isChecked()) days.add("Tue");
+            if(wed.isChecked()) days.add("Wed");
+            if(thu.isChecked()) days.add("Thu");
+            if(fri.isChecked()) days.add("Fri");
+            if(sat.isChecked()) days.add("Sat");
+            if(sun.isChecked()) days.add("Sun");
+        }
 
 
         // if no title is given, set a generic title
@@ -200,7 +231,7 @@ public class CreateNewPlanFragment extends Fragment {
             titleVar = "Plan #" + String.valueOf(db.getPlansCount()+1);
         }
 
-        if(days.isEmpty()){
+        if(days.isEmpty() && !autowatering){
             Toast.makeText(getContext(), "Please, choose at least one day for watering", Toast.LENGTH_SHORT).show();
         }
         else if(!(amnt > 0)){
@@ -220,13 +251,14 @@ public class CreateNewPlanFragment extends Fragment {
             Log.w(TAG, "time: " + timeVar);
             Log.w(TAG, "days: " + days);
             Log.w(TAG, "amount: " + amnt);
+            Log.w(TAG, "autowat: " + autowatering.toString());
 
 
             DateFormat format = new SimpleDateFormat("HH:mm");
             try {
                 Time timevalue = new Time(format.parse(timeVar).getTime());
                 int newId = db.getPlansCount() + 1;
-                WateringPlan plan = new WateringPlan(newId,titleVar, timevalue,days,amnt);
+                WateringPlan plan = new WateringPlan(newId,titleVar, timevalue,days,amnt, autowatering);
                 db.addPlan(plan);
 
                 // adding a new plan to the database
