@@ -169,7 +169,7 @@ public class WateringPlan {
 
     }
 
-
+    // turns the object into a json array
     public String getJsonString(){
 
         // codificando o array de dias
@@ -189,7 +189,7 @@ public class WateringPlan {
         }
 
         JSONObject obj = new JSONObject();
-        String regex = "(?<=\"deadlineDays\":)\"|\"(?=\\}\\])";
+        String regex = "(?<=\"deadlineDays\":)\"|\"(?=\\,)";
 
 
         try {
@@ -199,7 +199,7 @@ public class WateringPlan {
             obj.put("deadlineMinute", this.time.getMinutes());
             obj.put("deadlineSecond", this.time.getSeconds());
             obj.put("deadlineDays", Arrays.toString(weekDays));
-            obj.put("automaticWatering", false);
+            obj.put("automaticWatering", this.autoWatering);
 
         } catch (JSONException e) {
             e.printStackTrace();
