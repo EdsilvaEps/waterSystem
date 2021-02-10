@@ -183,7 +183,7 @@ public class WebService {
             encodedPayload = msg.getBytes("UTF-8");
             MqttMessage message = new MqttMessage(encodedPayload);
             message.setId(5866);
-            message.setRetained(true);
+            message.setRetained(false);
             message.setQos(0);
             mqttAndroidClient.publish(topic, message);
         } catch (UnsupportedEncodingException e) {

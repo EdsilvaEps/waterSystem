@@ -156,6 +156,8 @@ int soilSensorPin = 34; // GPIO 34 (Analog ADC1_CH6)
 int drySoilThreshold = 3800;
 int soilHumidity = 0;
 
+int lastWateredHour = -1; // last hour the plans have been watered
+
 // ***** /SCHEDULE & WATERING VARIABLES *******
 
 int availableNets = 0;
@@ -397,17 +399,13 @@ void loop() {
          values of soil sensor will be simply registered on a global var.
       */
       if(wprogram.automaticWatering == true){
-        //verifySoilHumidity();
-        //soilHumidity = analogRead(soilSensorPin);
-        //Serial.println(soilHumidity);
+        // if soil is dry and plants havent been watered in the current hour
+        if(isSoilDry() && (lastWateredHour != timeClient.getHours())){
+          pumpAction(wprogram.amountWater);
+        }
+        
       } 
 
-      else{
-        
-        soilHumidity = analogRead(soilSensorPin);
-        //Serial.println(soilHumidity);
-      }
-      
       state = CHECK_CONNECTION_STATE;
       //delay(500);
 
@@ -438,26 +436,22 @@ void loop() {
 }
 // ***************** /LOOP *********************************
 
-/* Simple function to verify the soil humidity, if above a certain
-   threshold, meaning a dry soil, water will be pumped into the plant.
+/* Simple function to verify the soil humidity.
    (test the threshold values with sensor inside plant */
-void verifySoilHumidity(){
+bool isSoilDry(){
 
   soilHumidity = analogRead(soilSensorPin);
-  Serial.print("Soil humidity: ");
-  Serial.println(soilHumidity);
 
   if(soilHumidity > drySoilThreshold){
-
-    pumpAction(wprogram.amountWater);
+    Serial.print("Soil is dry | Dryness: ");
+    Serial.println(soilHumidity);
+    return true;
     
-  }
+  } else return false;
 
 }
 
 // ***************** PROGRAM FUNCTIONS ************************
-
-// TODO: make sure the entire program from the app gets saved
 
 /* Since after after the first program setting we'll save it to memory 
  * we'll need to retrieve it after every new startup of the system. This 
@@ -531,6 +525,8 @@ void pumpAction(long int quantity){
     Serial.println("realizando regagem");
     int pumpDelay = (quantity/49)*1000;
     isWatering = true;
+    lastWateredHour = timeClient.getHours();
+    
 
     // create an async task for pumping water
     xTaskCreate(
@@ -552,8 +548,8 @@ void pumpTask(void *delayTime){
   digitalWrite(pumpPin, HIGH);
   delay(dt);
   digitalWrite(pumpPin, LOW);
-  Serial.println("irrigation finished");
-  Serial.println(dt);
+  //Serial.println("irrigation finished");
+  //Serial.println(dt);
   isWatering = false;
   vTaskDelete( NULL );
 }
@@ -761,11 +757,11 @@ bool reconnectToBroker(){
     Serial.print("tentativas ");
     Serial.println(connectionAttempts);
     
-    if(client.connect("EddieHomeWS",mqttUser,mqttPassword)){
+    if(client.connect("EddiesHomeWS",mqttUser,mqttPassword, NULL, 0, false, NULL, true)){
       
       Serial.println("Conectado ao Broker!");
       client.subscribe(subscribeTimingPath);
-      client.subscribe(subscribeCtrlPath);
+      //client.subscribe(subscribeCtrlPath);
       client.subscribe(subscribeAmountPath);
       client.subscribe(publishReport);
       client.subscribe(setupWateringProgram);
