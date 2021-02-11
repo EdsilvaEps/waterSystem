@@ -157,6 +157,7 @@ int drySoilThreshold = 3800;
 int soilHumidity = 0;
 
 int lastWateredHour = -1; // last hour the plans have been watered
+int lastSoilMCheckedMinute = -1;
 
 // ***** /SCHEDULE & WATERING VARIABLES *******
 
@@ -296,6 +297,8 @@ void setup() {
 // ***************** LOOP *********************************
 void loop() {
 
+  int currMins = 0;
+  
   // STATE MACHINE PROCESS 
   switch(state){
 
@@ -398,8 +401,11 @@ void loop() {
          shall water the plants when above a certain dryness threshold, otherwise the 
          values of soil sensor will be simply registered on a global var.
       */
-      if(wprogram.automaticWatering == true){
+      currMins = timeClient.getMinutes();
+      // we only check soil moisture in 5 minutes intervals
+      if(wprogram.automaticWatering == true && currMins != lastSoilMCheckedMinute && isMinute5Multiple()){
         // if soil is dry and plants havent been watered in the current hour
+        Serial.println("soil humidity checking");
         if(isSoilDry() && (lastWateredHour != timeClient.getHours())){
           pumpAction(wprogram.amountWater);
         }
@@ -435,20 +441,54 @@ void loop() {
   
 }
 // ***************** /LOOP *********************************
+// is the current minute a multiple of five?
+bool isMinute5Multiple(){
+  return (timeClient.getMinutes() % 5 == 0) ;
+}
+
 
 /* Simple function to verify the soil humidity.
    (test the threshold values with sensor inside plant */
 bool isSoilDry(){
 
   soilHumidity = analogRead(soilSensorPin);
+  lastSoilMCheckedMinute = timeClient.getMinutes();
 
   if(soilHumidity > drySoilThreshold){
     Serial.print("Soil is dry | Dryness: ");
     Serial.println(soilHumidity);
     return true;
     
-  } else return false;
+  } else{
+    Serial.print("Soil is not dry | Dryness: ");
+    Serial.println(soilHumidity);
+    return false;
+  }
 
+  sendHSensorStatusMessage(soilHumidity);
+
+}
+
+void sendHSensorStatusMessage(int humidity){
+
+  String statusMsg;
+  String humidityStr = String(humidity);
+  statusMsg.reserve(30);
+
+  statusMsg = "Dryness: ";
+  statusMsg += humidityStr;
+
+  StaticJsonBuffer<200> jsonMsg;
+  JsonObject& root = jsonMsg.createObject();
+  root["type"] = "moistureSensor";
+  root["lastWatered"] = lastWateredHour;
+  root["message"] = statusMsg;
+  
+  Serial.println("Sending status msg:");
+  root.printTo(Serial);
+
+  
+  
 }
 
 // ***************** PROGRAM FUNCTIONS ************************
@@ -476,7 +516,7 @@ WateringProgram setWProgramFromMemory(){
   w.deadlineDays[4] = preferences.getInt("day4",-1);
   w.deadlineDays[5] = preferences.getInt("day5",-1);
   w.deadlineDays[6] = preferences.getInt("day6",-1);
-  w.automaticWatering = preferences.getBool("automaticWatering", true);
+  w.automaticWatering = preferences.getBool("automaticWatering", false);
 
   return w;
   
@@ -491,20 +531,26 @@ void saveProgramToMemory(WateringProgram w){
   preferences.putInt("deadlineSecond", w.deadlineSecond);
   preferences.putInt("amountWater", w.amountWater);
   preferences.putInt("gmtTimezone", w.gmtTimezone);
-  preferences.putBool("automaticWatering", w.automaticWatering);
+  if(w.automaticWatering) {
+    preferences.putBool("automaticWatering", true);
+  } else preferences.putBool("automaticWatering", false);
+  
+  Serial.print("Auto watering: ");
+  Serial.println(w.automaticWatering);
   preferences.putInt("day0", w.deadlineDays[0]);
-  Serial.println(w.deadlineDays[1]);
+  Serial.println(w.deadlineDays[0]);
   preferences.putInt("day1", w.deadlineDays[1]);
-  Serial.println(w.deadlineDays[2]);
+  Serial.println(w.deadlineDays[1]);
   preferences.putInt("day2", w.deadlineDays[2]);
-  Serial.println(w.deadlineDays[3]);
+  Serial.println(w.deadlineDays[2]);
   preferences.putInt("day3", w.deadlineDays[3]);
-  Serial.println(w.deadlineDays[4]);
+  Serial.println(w.deadlineDays[3]);
   preferences.putInt("day4", w.deadlineDays[4]);
-  Serial.println(w.deadlineDays[5]);
+  Serial.println(w.deadlineDays[4]);
   preferences.putInt("day5", w.deadlineDays[5]);
-  Serial.println(w.deadlineDays[6]);
+  Serial.println(w.deadlineDays[5]);
   preferences.putInt("day6", w.deadlineDays[6]);
+  Serial.println(w.deadlineDays[6]);
   preferences.end();
   
   
