@@ -454,6 +454,8 @@ bool isSoilDry(){
   soilHumidity = analogRead(soilSensorPin);
   lastSoilMCheckedMinute = timeClient.getMinutes();
 
+  sendHSensorStatusMessage(soilHumidity);
+
   if(soilHumidity > drySoilThreshold){
     Serial.print("Soil is dry | Dryness: ");
     Serial.println(soilHumidity);
@@ -465,11 +467,10 @@ bool isSoilDry(){
     return false;
   }
 
-  sendHSensorStatusMessage(soilHumidity);
-
 }
 
 void sendHSensorStatusMessage(int humidity){
+  Serial.println("[FUNCTION] sendHSensorStatusMessage()");
 
   String statusMsg;
   String humidityStr = String(humidity);
@@ -478,14 +479,19 @@ void sendHSensorStatusMessage(int humidity){
   statusMsg = "Dryness: ";
   statusMsg += humidityStr;
 
-  StaticJsonBuffer<200> jsonMsg;
-  JsonObject& root = jsonMsg.createObject();
+  StaticJsonDocument<200> jsonMsg;
+  JsonObject root = jsonMsg.to<JsonObject>();
+  //JsonObject& root = jsonMsg.createObject();
   root["type"] = "moistureSensor";
   root["lastWatered"] = lastWateredHour;
   root["message"] = statusMsg;
-  
+
+  char msgToSend[80];
+  serializeJson(root, msgToSend);
   Serial.println("Sending status msg:");
-  root.printTo(Serial);
+  Serial.println(msgToSend);
+  Serial.println("");
+  publishMsg(pingPath,msgToSend);
 
   
   
