@@ -34,6 +34,10 @@ Preferences preferences;
 //Pauliina's net : "TW-EAV510v28483";
 //Pauliina's net pwd: "58d19c6fa81fe5e6";
 
+String network = "Os Silva Wi Fi";
+String password= "f0r@c0ntr0l3";
+bool conncted = false;
+
 // certificado para acesso usando TLS
 const char* ca_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -70,11 +74,6 @@ const char* ca_cert = \
 "-----END CERTIFICATE-----\n";
 
 
-
-
-String network = "Os Silva Wi Fi";
-String password= "f0r@c0ntr0l3";
-bool conncted = false;
 
 volatile int interruptCounter = 0;
 
@@ -522,7 +521,7 @@ WateringProgram setWProgramFromMemory(){
   w.deadlineDays[4] = preferences.getInt("day4",-1);
   w.deadlineDays[5] = preferences.getInt("day5",-1);
   w.deadlineDays[6] = preferences.getInt("day6",-1);
-  w.automaticWatering = preferences.getBool("automaticWatering", false);
+  w.automaticWatering = preferences.getInt("automaticWatering", 0);
 
   return w;
   
@@ -538,8 +537,8 @@ void saveProgramToMemory(WateringProgram w){
   preferences.putInt("amountWater", w.amountWater);
   preferences.putInt("gmtTimezone", w.gmtTimezone);
   if(w.automaticWatering) {
-    preferences.putBool("automaticWatering", true);
-  } else preferences.putBool("automaticWatering", false);
+    preferences.putInt("automaticWatering", 1);
+  } else preferences.putInt("automaticWatering", 0);
   
   Serial.print("Auto watering: ");
   Serial.println(w.automaticWatering);
