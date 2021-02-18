@@ -55,7 +55,8 @@
             <input type="text" id="pwd" name="password">
           </form>
           <br>
-          <button class="btn">Conectar</button>
+          <button class="btn" onclick="attemptConnection()">Conectar</button>
+          <p id="warnmsg" hidden>O dispositivo tentará se conectar a esta rede, você pode fechar esta aba...</p>
         </div>
       
 
@@ -130,6 +131,15 @@ function connectToNet(netNameId, isOpenId){
     modal.style.display = 'block'
 
   }
+
+}
+
+// here be connection functions
+function attemptConnection(){
+  // TODO: add some delay here
+  msg = document.getElementById("warnmsg");
+  msg.hidden = false;
+  
 
 }
 
