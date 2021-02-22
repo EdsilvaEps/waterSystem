@@ -79,8 +79,12 @@
 
 <script>
 
-// Get the element with id="defaultOpen" and click on it
+let ws = new WebSocket("ws://%PLACEHOLDER%/ws");
+ws.onopen = function(){
+  console.log("CONNECTED!");
+}
 
+// Get the element with id="defaultOpen" and click on it
 document.getElementById("defaultOpen").click();
 
 function openTab(e, tabName){
