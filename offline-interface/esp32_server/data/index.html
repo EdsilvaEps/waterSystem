@@ -29,7 +29,7 @@
         </tr>
         <tr>
           <td id="rede1">Rede 1 nome</td>
-          <td>WPA-PSK</td>
+          <td id="rede1_crypt">WPA-PSK</td>
           <td id="rede1_isopen">Não</td>
           <td><button id="connect" onclick="connectToNet('rede1', 'rede1_isopen')">Conectar</button></td>
         </tr>
@@ -82,6 +82,23 @@
 let ws = new WebSocket("ws://%PLACEHOLDER%/ws");
 ws.onopen = function(){
   console.log("CONNECTED!");
+}
+
+
+ws.onmessage = function(event){
+  console.log(event);
+  parseObjs(event.data);
+}
+
+function parseObjs(msg){
+
+  let obj = JSON.parse(msg);
+  console.log(obj);
+  document.getElementById("rede1").innerHTML = obj.netname;
+  document.getElementById("rede1_crypt").innerHTML = obj.encryption;
+  document.getElementById("rede1_isopen").innerHTML = obj.openNet;
+
+
 }
 
 // Get the element with id="defaultOpen" and click on it
