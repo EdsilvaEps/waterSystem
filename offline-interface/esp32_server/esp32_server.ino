@@ -51,6 +51,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   
 }
 
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -97,22 +98,69 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  // here we send the information we need to the page
-  // TODO1: make a dedicated function
-  // TODO2: use a FreeRTOS function to schedule sending
-  // TOOD3: use real network information
-  if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
-    String mocknet;
-    StaticJsonDocument<200> jsonMsg;
-    JsonObject root = jsonMsg.to<JsonObject>();
-    root["netname"] = "Os Silva WiFi";
-    root["encryption"] = "WPA-PSK";
-    root["openNet"] = "No";
-    serializeJson(root, mocknet);
-    globalClient->text(mocknet);
-  }
+  exportInfo();
   delay(4000);
 
 }
 
+// here we send the information we need to the page
+void exportInfo(){
+  // TODO2: use a FreeRTOS function to schedule sending
+  // TOOD3: use real network information
+  Serial.println("[FUNCTION] exportInfo()");
+  //if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
+
+    int n = scanNets();
+    if(n > 0){
+      size_t capacity = JSON_ARRAY_SIZE(n) + n*JSON_OBJECT_SIZE(n);
+
+      DynamicJsonDocument jsonBuffer(capacity);
+      JsonArray arr = jsonBuffer.createNestedArray();
+
+      for(int i = 0; i < n ; i++){
+        
+        JsonObject root = arr.createNestedObject();
+        root["netname"] = String(WiFi.SSID(i));
+        root["encryption"] = String(WiFi.encryptionType(i));
+        (WiFi.encryptionType(i) == WIFI_AUTH_OPEN)? root["opennet"] = "Yes" : root["opennet"] = "No"; 
+      }
+
+      String nets;
+      serializeJson(arr, nets);
+      Serial.println(nets);
+      //globalClient->text(nets);
+      
+    } 
+
+  //}
   
+}
+
+
+int scanNets(){
+  
+  // WiFi.scanNetworks will return the number of networks found
+    int n = WiFi.scanNetworks();
+    //availableNets = n;
+    Serial.println("scan done");
+    if (n == 0) {
+        Serial.println("no networks found");
+    } else {
+        Serial.print(n);
+        Serial.println(" networks found");
+        for (int i = 0; i < n; ++i) {
+            // Print SSID and RSSI for each network found
+            Serial.print(i + 1);
+            Serial.print(": ");
+            Serial.print(WiFi.SSID(i));
+            Serial.print(" (");
+            Serial.print(WiFi.RSSI(i));
+            Serial.print(")");
+            Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
+            delay(10);
+        }
+    }
+    Serial.println("");
+    return n;
+      
+}
