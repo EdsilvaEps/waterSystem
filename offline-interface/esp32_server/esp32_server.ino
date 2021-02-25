@@ -108,7 +108,7 @@ void exportInfo(){
   // TODO2: use a FreeRTOS function to schedule sending
   // TOOD3: use real network information
   Serial.println("[FUNCTION] exportInfo()");
-  //if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
+  if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
 
     int n = scanNets();
     if(n > 0){
@@ -128,11 +128,11 @@ void exportInfo(){
       String nets;
       serializeJson(arr, nets);
       Serial.println(nets);
-      //globalClient->text(nets);
+      globalClient->text(nets);
       
     } 
 
-  //}
+  }
   
 }
 
