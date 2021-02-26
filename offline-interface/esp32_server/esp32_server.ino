@@ -15,6 +15,7 @@ AsyncWebSocketClient * globalClient = NULL;
 String ip = "";
 IPAddress ipAddr;
 
+String recvMsg;
 /*
  * Since we cannot hardcode an IP address for the webpage
  * to connect to the board server, this function replaces 
@@ -47,6 +48,20 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   else if(type == WS_EVT_DISCONNECT){
     Serial.println("Websocket client connection finished");
     globalClient = NULL;
+  }
+
+  else if(type == WS_EVT_DATA){
+    Serial.println("Information received!");
+    char dataMsg[len];
+
+    for(int i = 0; i < len; i++){
+      Serial.print((char) data[i]);
+      dataMsg[i] = (char) data[i];
+    }
+
+    Serial.println();
+    recvMsg = String(dataMsg);
+    
   }
   
 }
