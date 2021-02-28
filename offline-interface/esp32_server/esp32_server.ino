@@ -4,8 +4,11 @@
 #include <ArduinoJson.h>
 
 
-const char* network = "Os Silva Wi Fi";
-const char* password= "f0r@c0ntr0l3";
+//const char* network = "Os Silva Wi Fi";
+//const char* password= "f0r@c0ntr0l3";
+
+const char* softApSSID = "Edson_System";
+const char* softApPwd = "riptide";
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -61,9 +64,79 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 
     Serial.println();
     recvMsg = String(dataMsg);
+    processSelectedNet(dataMsg);
     
   }
   
+}
+
+
+void processSelectedNet(String msg){
+  // TODO: save net data before trying connection.
+
+  const size_t capacity = JSON_OBJECT_SIZE(2) + 200;
+  DynamicJsonDocument doc(capacity);
+
+  DeserializationError error = deserializeJson(doc, msg);
+  if(error){
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+
+  String netname = doc["netname"];
+  String pwd = doc["pwd"];
+
+  Serial.print("Nome da rede: ");
+  Serial.println(netname);
+  Serial.print("senha rede: ");
+  Serial.println(pwd);
+
+  //---- there's already a function for this in the main program ----//
+  char net[60];
+  char pass[60];
+
+  netname.toCharArray(net,60);
+  pwd.toCharArray(pass,60);
+  // TODO: research the method "beginSecure()" of server
+  // TODO: research enabling SSL security
+  server.end(); // end server connection
+  WiFi.softAPdisconnect(); // remove AP server
+  delay(500);
+  WiFi.begin(net, pass);
+  connectedAfterTimeout();
+  
+  
+  
+}
+
+bool isConnected(){
+  return WiFi.status() == WL_CONNECTED;
+}
+
+// function counts a timeout for connecting to a network 
+bool connectedAfterTimeout(){
+  int attemptsAcc = 0; // attempts to connect
+  
+  while(!isConnected() && (attemptsAcc < 10)){
+    delay(500);
+    Serial.print("connectando com wifi ");
+    attemptsAcc++;
+      
+  }
+
+  if(isConnected()){
+      
+     Serial.print("Connectado com a rede ");
+
+     return true;
+  } 
+  else{
+    
+     Serial.println("Failed to connect to network");
+     return false;
+  }
+
 }
 
 
@@ -76,17 +149,21 @@ void setup() {
     return;
   }
 
-  WiFi.begin(network, password);
-
-  while(WiFi.status() != WL_CONNECTED){
+  /*WiFi.begin(network, password);
+   * while(WiFi.status() != WL_CONNECTED){
     delay(1000);
     Serial.println("Connecting to WiFi...");
-  }
+   }
+   ipAddr = WiFi.localIP();
+   */
+
+   
+  WiFi.softAP(softApSSID, softApPwd);
+  ipAddr = WiFi.softAPIP();
 
   // formatting the ip address into a suitable string
   // to be sent to the webpage
-  char buf[20];
-  ipAddr = WiFi.localIP();
+  char buf[20];  
   sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
   ip = String(buf);
   Serial.println(buf);
@@ -121,7 +198,6 @@ void loop() {
 // here we send the information we need to the page
 void exportInfo(){
   // TODO2: use a FreeRTOS function to schedule sending
-  // TOOD3: use real network information
   Serial.println("[FUNCTION] exportInfo()");
   if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
 
