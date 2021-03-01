@@ -192,6 +192,7 @@ void loop() {
 
   exportInfo();
   delay(4000);
+  starte();
 
 }
 
@@ -254,4 +255,9 @@ int scanNets(){
     Serial.println("");
     return n;
       
+}
+
+void starte(){
+  server.begin();
+  
 }

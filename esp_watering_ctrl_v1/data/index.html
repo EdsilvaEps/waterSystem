@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Painel de Configuracao - Smart Farm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <!-- links das abas -->
+  <div class="tab">
+    <button class="tablinks" onclick="openTab(event,'wifi')" id="defaultOpen">WiFi</button>
+    <button class="tablinks" onclick="openTab(event, 'status')">Status</button>
+    <button class="tablinks" onclick="openTab(event, 'config')">Configurar</button>
+  </div>
+
+
+  <!-- Conteudo das abas -->
+  <div id="wifi" class="tabcontent">
+    <div style="overflow-x: auto;">
+      <h1>Painel de Configuracao - Smart Farm</h1>
+      <h3>Redes WiFi Disponiveis</h3>
+      <table id="wifi-nets">  
+        <tr>
+          <th>Nome</th>
+          <th>Criptografia</th>
+          <th>Rede Aberta</th>
+          <th>Conectar</th>
+        </tr>
+        <!--<tr> --> 
+        <!--<td id="rede1">Rede 1 nome</td>-->  
+        <!--  <td id="rede1_crypt">WPA-PSK</td> -->
+        <!--  <td id="rede1_isopen">Não</td> -->
+        <!--  <td><button id="connect" onclick="connectToNet('rede1', 'rede1_isopen')">Conectar</button></td> -->
+        <!--</tr> -->
+        
+      </table>
+      <br>
+      <button class="btn">Refresh</button>
+
+    </div>
+
+    <!-- The Modal -->
+    <div id="pwdmodal" class="modal">
+
+      <!-- Modal content -->
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="close">&times;</span>
+          <h2 id="modal_net_name">Rede</h2>
+        </div>
+        <div class="modal-body">
+          <form>
+            <label for="pwd">Digite a senha:</label><br>
+            <input type="text" id="pwd" name="password">
+          </form>
+          <br>
+          <button class="btn" onclick="attemptConnection()">Conectar</button>
+          <p id="warnmsg" hidden>O dispositivo tentara se conectar a esta rede, voce pode fechar a aba...</p>
+        </div>
+      
+
+    </div>
+
+
+  <div id="status" class="tabcontent">
+    <p>conteudo por adicionar</p>
+  </div>
+
+  <div id="config" class="tabcontent">
+    <p>
+      conteudo por adicionar
+    </p>
+  </div>
+
+
+</body>
+</html>
+
+<script>
+
+let ws = new WebSocket("ws://%PLACEHOLDER%/ws");
+ws.onopen = function(){
+  console.log("CONNECTED!");
+}
+
+
+ws.onmessage = function(event){
+  console.log(event);
+  parseObjs(event.data);
+}
+
+let networksFound = [];
+
+function parseObjs(msg){
+
+  let objArray = JSON.parse(msg);
+  console.log(objArray);
+
+  for(let i=0; i < objArray.length; i++){
+
+    // if network isnt already on the list
+    if(!networksFound.includes(objArray[i].netname)){
+
+      let name = "rede" + String(i);
+      let encryptId = name + "_crypt";
+      let isopenId = name + "_isopen";
+      let connectId = "connect_to_" + name;
+
+      let newTableLine = document.createElement("tr");
+      
+      let nameNode = document.createElement("td");
+      nameNode.innerHTML = objArray[i].netname;
+      nameNode.setAttribute("id", name);
+
+      let cryptNode = document.createElement("td");
+      cryptNode.innerHTML = objArray[i].encryption;
+      cryptNode.setAttribute("id", encryptId);
+
+      let openNetNode = document.createElement("td");
+      openNetNode.innerHTML = objArray[i].opennet;
+      openNetNode.setAttribute("id", isopenId);
+
+      let connectBtn = document.createElement("span");
+      connectBtn.innerHTML = '<button id="' + connectId + '" onclick="connectToNet(' + '\'' + objArray[i].netname + '\'' + ',' + '\'' + objArray[i].opennet + '\'' + ')">Conectar</button>';
+      let btnColumn = document.createElement("td");
+      btnColumn.appendChild(connectBtn);
+
+
+      newTableLine.appendChild(nameNode);
+      newTableLine.appendChild(cryptNode);
+      newTableLine.appendChild(openNetNode);
+      newTableLine.appendChild(btnColumn);
+
+      document.getElementById("wifi-nets").appendChild(newTableLine);
+
+      console.log("Parsed obj");
+      console.log(objArray[i]);
+
+      networksFound.push(objArray[i].netname);
+
+    }
+
+    
+
+  }
+  //document.getElementById("rede1").innerHTML = obj.netname;
+  //document.getElementById("rede1_crypt").innerHTML = obj.encryption;
+  //document.getElementById("rede1_isopen").innerHTML = obj.openNet;
+
+
+}
+
+function sendNet(netName, isOpen, pwd){
+  
+  //let obj;
+  let net = "";
+
+  if(isOpen == "No" && pwd !== ""){
+
+    net = '{ "netname": "' + netName + '", "pwd": "' + pwd + '" }';  
+
+  }else{
+
+    net = '{ "netname": "' + netName + '" }';
+  } 
+  
+  //obj = JSON.parse(net);
+
+  // checking if connection is open for comms
+  // then send message to board
+  if(ws.readyState == 1) ws.send(net);
+
+
+}
+
+// Get the element with id="defaultOpen" and click on it
+document.getElementById("defaultOpen").click();
+
+function openTab(e, tabName){
+
+  var i, tabcontent, tablinks;
+
+  // Get all elements with class="tabcontent" and hide them
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+
+  // Get all elements with class="tablinks" and remove the class "active"
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+
+  // Show the current tab, and add an "active" class to the button that opened the tab
+  document.getElementById(tabName).style.display = "block";
+  e.currentTarget.className += " active";
+}
+
+let modal = document.getElementById("pwdmodal");
+let btn = document.getElementById("connect"); // make a btn function
+let span = document.getElementsByClassName("close")[0];
+
+let netToConnect;
+let IsNetOpen;
+
+// opens the modal
+//btn.onclick = function(){
+//  modal.style.display = "block";
+//}
+
+// this function opens pwd modal if net is closed
+// and connects immediately if not
+function connectToNet(netName, isOpen){
+  
+  console.log(netName);
+  console.log(isOpen);
+
+  netToConnect = netName;
+  IsNetOpen = isOpen;
+
+  // if net isnt open, pop modal for pwd typing
+  if(isOpen == 'No'){
+
+    document.getElementById("modal_net_name").innerHTML = netName;
+    modal.style.display = 'block'
+
+  } else sendNet(netToConnect, IsNetOpen, "");
+
+}
+
+// here be connection functions
+function attemptConnection(){
+  // TODO: add some delay here
+  msg = document.getElementById("warnmsg");
+  msg.hidden = false;
+
+  let pwd = document.getElementById('pwd').value;
+  sendNet(netToConnect, "No", String(pwd));
+
+}
+
+// closes the modal
+span.onclick = function(){
+  modal.style.display = "none";
+}
+
+// when user clicks outside of modal, close it
+window.onclick = function(event){
+  if(event.target == modal){
+    modal.style.display = "none";
+  }
+}
+
+</script>

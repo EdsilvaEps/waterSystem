@@ -12,6 +12,8 @@
 #include <Preferences.h>
 //#include "TOD.h"
 #include "WateringPlan.h"
+#include "SPIFFS.h"
+#include "ESPAsyncWebServer.h"
 
 #define PREFS "my-app"
 #define MANAUSGMT -14400 // MANAUS GMT TIME = -4
@@ -88,6 +90,17 @@ int dataLed = 32;
 
 // pump pin
 int pumpPin = 12;
+
+// ******* SOFT AP VARIABLES **************
+const char* softApSSID = "ed_system";
+const char *softApPWD = "riptide";
+IPAddress ipAddr;
+String recvMsg, ip;
+bool isSoftApConnected = false; 
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+AsyncWebSocketClient * globalClient = NULL;
+// *******/SOFT AP VARIABLES **************
 
 // ******* MQTT VARIABLEs *****************
 // mqtt broker currently running on maqiatto
@@ -270,14 +283,31 @@ void setup() {
     pinMode(dataLed, OUTPUT);
     pinMode(serverLed, OUTPUT);
     pinMode(countingLed, OUTPUT);
-    
 
+    if(!SPIFFS.begin()){
+      Serial.println("An error has ocurred while mounting SPIFFS");
+      return;
+    }
+
+    // binding the handler function with websocket and 
+    // websocket to the webserver.
+    ws.onEvent(onWsEvent);
+    server.addHandler(&ws);
+
+    server.on("/html", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+
+    server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/style.css", "text/css");
+    });
+    
     // try to get watering program from memory
     wprogram = setWProgramFromMemory();
 
     // try to connect to the network 
     connectToSavedNetwork();
-    
+
     // mqtt settings 
     //espClient.setCACert(ca_cert); // SSL/TLS certificate
     //client.setServer(mqttServer, mqttPort);
@@ -285,11 +315,14 @@ void setup() {
     //currProgram = getMemProgram();
     printProgram();
 
-    // TODO: customize this so we get the gmt from the loaded program.
     timeClient.begin();
     timeClient.setTimeOffset(wprogram.gmtTimezone);
 
-
+    if(!isConnected()){
+      createSoftApConnection();
+    }
+    
+    
     
 }
 
@@ -322,16 +355,13 @@ void loop() {
       break;
 
     case SELECT_NETWORKS_STATE:
-      //Serial.println("select nets state");
-      if(Serial.available() > 0){
-        char input = Serial.read(); 
-        char inp[12]= {input};
-        int in = atoi(inp); // convert from ascII to int
-        connectToSelectedNet(in);
+    
+      // create soft ap connection
+      // for selection of network
+      createSoftApConnection();
 
-        if (isConnected()) state = TIME_CHECK_STATE;
-        
-      }
+      if (isConnected()) state = TIME_CHECK_STATE;
+      
       break;
 
     case TIME_CHECK_STATE:
@@ -439,7 +469,175 @@ void loop() {
   
   
 }
+
 // ***************** /LOOP *********************************
+
+//****************** OFFLINE INTERFACE *********************
+
+/*
+ * Since should not hardcode an IP address for the webpage
+ * to connect to the board server, this function replaces 
+ * a tag inside the webpg code with the ip address currently
+ * used by the board.
+ * 
+*/
+String processor(const String& var){
+
+  if(var == "PLACEHOLDER")
+    return ip;
+
+  return String();
+  
+}
+
+/*
+ * create a soft ap server connetion
+ * for selecting the wifi network.
+*/
+void createSoftApConnection(){
+
+  if(isSoftApConnected){
+    return;
+    
+  } else{
+
+    isSoftApConnected = WiFi.softAP(softApSSID, softApPWD);
+    ipAddr = WiFi.softAPIP();
+    server.begin();
+
+    // formatting the ip address into a suitable string
+    // to be sent to the webpage
+    char buf[20];  
+    sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
+    ip = String(buf);
+  
+    //Serial.println(buf);
+    //Serial.println(ip);
+    //Serial.println(WiFi.localIP());
+  
+    Serial.println("Soft AP connection created");
+    Serial.print("Navigate to: ");
+    Serial.print("http://");
+    Serial.print(ip);
+    Serial.println("/html");
+
+    
+    
+  }
+  
+  
+  
+}
+
+void endSoftApConnection(){
+  
+  // TODO: research the method "beginSecure()" of server
+  // TODO: research enabling SSL security
+  server.end(); // end server connection
+  WiFi.softAPdisconnect(); // remove AP server
+  isSoftApConnected = false;
+}
+
+/*
+ * Since we need to handle information coming and going between client and server
+ * this function takes care of events like "client connected" or disconnected. 
+*/
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t * data, size_t len){
+
+  if(type == WS_EVT_CONNECT){
+
+    Serial.println("Websocket client connection received");
+    globalClient = client;
+  }
+
+  else if(type == WS_EVT_DISCONNECT){
+    Serial.println("Websocket client connection finished");
+    globalClient = NULL;
+  }
+
+  else if(type == WS_EVT_DATA){
+    Serial.println("Information received!");
+    char dataMsg[len];
+
+    for(int i = 0; i < len; i++){
+      Serial.print((char) data[i]);
+      dataMsg[i] = (char) data[i];
+    }
+
+    Serial.println();
+    recvMsg = String(dataMsg);
+    processSelectedNet(dataMsg);
+    
+  }
+  
+}
+
+/*
+ * After the user selects the desired wifi network from
+ * the interface, its data need to be processed (unpacked)
+ * and connection attempted.
+*/
+void processSelectedNet(String msg){
+ 
+  const size_t capacity = JSON_OBJECT_SIZE(2) + 200;
+  DynamicJsonDocument doc(capacity);
+
+  DeserializationError error = deserializeJson(doc, msg);
+  if(error){
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+
+  String netname = doc["netname"];
+  String pwd = doc["pwd"];
+
+  Serial.print("Nome da rede: ");
+  Serial.println(netname);
+  Serial.print("senha rede: ");
+  Serial.println(pwd);
+  
+  connectToSelectedNet2(netname, pwd);
+  endSoftApConnection();
+    
+  
+}
+
+// here we send the information we need to the page
+void exportInfo(){
+  // TODO2: use a FreeRTOS function to schedule sending
+  Serial.println("[FUNCTION] exportInfo()");
+  if(globalClient != NULL && globalClient->status() == WS_CONNECTED){
+
+    int n = scanNets();
+    if(n > 0){
+      size_t capacity = JSON_ARRAY_SIZE(n) + n*JSON_OBJECT_SIZE(n);
+
+      DynamicJsonDocument jsonBuffer(capacity);
+      JsonArray arr = jsonBuffer.createNestedArray();
+
+      for(int i = 0; i < n ; i++){
+        
+        JsonObject root = arr.createNestedObject();
+        root["netname"] = String(WiFi.SSID(i));
+        root["encryption"] = String(WiFi.encryptionType(i));
+        (WiFi.encryptionType(i) == WIFI_AUTH_OPEN)? root["opennet"] = "Yes" : root["opennet"] = "No"; 
+      }
+
+      String nets;
+      serializeJson(arr, nets);
+      Serial.println(nets);
+      globalClient->text(nets);
+      
+    } 
+
+  }
+  
+}
+
+//******************/OFFLINE INTERFACE *********************
+
+//****************** MOISTURE SENSOR ***********************
 // is the current minute a multiple of five?
 bool isMinute5Multiple(){
   return (timeClient.getMinutes() % 5 == 0) ;
@@ -495,6 +693,8 @@ void sendHSensorStatusMessage(int humidity){
   
   
 }
+
+//******************/MOISTURE SENSOR ***********************
 
 // ***************** PROGRAM FUNCTIONS ************************
 
@@ -928,7 +1128,7 @@ void checkNetStatus(){
 
 
 // ***************** SCAN FOR NETWORKS *******************************
-void scanNets(){
+int scanNets(){
   
   // WiFi.scanNetworks will return the number of networks found
     int n = WiFi.scanNetworks();
@@ -952,12 +1152,28 @@ void scanNets(){
         }
     }
     Serial.println("");
+    return n;
       
 }
 // ***************** /SCAN FOR NETWORKS *******************************
 
 
 // **************** CONNECT TO SELECTED NETWORK ***********************
+
+// simple function to connect using given credentials
+void connectToSelectedNet2(String net, String pwd){
+
+  char net[60];
+  char pass[60];
+
+  netname.toCharArray(net,60);
+  pwd.toCharArray(pass,60);
+
+  WiFi.begin(net, pass);
+  connectedAfterTimeout(net, pass);
+  
+}
+
 void connectToSelectedNet(int input){
   
   /* if we arent connected the input is handling
