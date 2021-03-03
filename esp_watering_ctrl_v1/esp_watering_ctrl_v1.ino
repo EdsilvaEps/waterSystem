@@ -37,7 +37,7 @@ Preferences preferences;
 //Pauliina's net pwd: "58d19c6fa81fe5e6";
 
 String network = "Os Silva Wi Fi";
-String password= "f0r@c0ntr0l3";
+String password= "f0r@c0ntr0l";
 bool conncted = false;
 
 // certificado para acesso usando TLS
@@ -348,7 +348,7 @@ void loop() {
         if(!connectToSavedNetwork()){
           Serial.println("WiFi não conectado! Vamos tentar outra rede");
           state = SELECT_NETWORKS_STATE;
-          scanNets(); 
+          //scanNets(); 
         }
           
       }
@@ -359,6 +359,9 @@ void loop() {
       // create soft ap connection
       // for selection of network
       createSoftApConnection();
+
+      // escanear redes a cada dois segundos
+      if (isSoftApConnected) exportInfo();
 
       if (isConnected()) state = TIME_CHECK_STATE;
       
@@ -464,10 +467,6 @@ void loop() {
   }
 
   
-  
-
-  
-  
 }
 
 // ***************** /LOOP *********************************
@@ -496,14 +495,19 @@ String processor(const String& var){
 */
 void createSoftApConnection(){
 
+
   if(isSoftApConnected){
     return;
     
   } else{
 
-    isSoftApConnected = WiFi.softAP(softApSSID, softApPWD);
+    Serial.println("opening soft connection");
+
+    WiFi.softAP(softApSSID, softApPWD);
     ipAddr = WiFi.softAPIP();
     server.begin();
+
+    isSoftApConnected = true;
 
     // formatting the ip address into a suitable string
     // to be sent to the webpage
@@ -603,6 +607,7 @@ void processSelectedNet(String msg){
   
 }
 
+
 // here we send the information we need to the page
 void exportInfo(){
   // TODO2: use a FreeRTOS function to schedule sending
@@ -629,11 +634,14 @@ void exportInfo(){
       Serial.println(nets);
       globalClient->text(nets);
       
-    } 
+    }
+
+    delay(2000);
 
   }
   
 }
+
 
 //******************/OFFLINE INTERFACE *********************
 
@@ -1161,7 +1169,7 @@ int scanNets(){
 // **************** CONNECT TO SELECTED NETWORK ***********************
 
 // simple function to connect using given credentials
-void connectToSelectedNet2(String net, String pwd){
+void connectToSelectedNet2(String netname, String pwd){
 
   char net[60];
   char pass[60];
