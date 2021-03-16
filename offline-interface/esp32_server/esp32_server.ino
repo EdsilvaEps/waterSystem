@@ -290,6 +290,7 @@ bool connectedAfterTimeout(){
     
      Serial.println("Failed to connect to network");
      //WiFi.mode(WIFI_STA);
+     
      WiFi.disconnect();
      return false;
   }
