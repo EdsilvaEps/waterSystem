@@ -4,8 +4,8 @@
 #include <ArduinoJson.h>
 
 
-//const char* network = "Os Silva Wi Fi";
-//const char* password= "f0r@c0ntr0l3";
+String network = "Os Silva Wi Fi";
+String password= "f0r@c0ntr0l";
 
 const char* softApSSID = "Edson_System";
 const char* softApPwd = "riptide";
@@ -114,30 +114,7 @@ bool isConnected(){
   return WiFi.status() == WL_CONNECTED;
 }
 
-// function counts a timeout for connecting to a network 
-bool connectedAfterTimeout(){
-  int attemptsAcc = 0; // attempts to connect
-  
-  while(!isConnected() && (attemptsAcc < 10)){
-    delay(500);
-    Serial.print("connectando com wifi ");
-    attemptsAcc++;
-      
-  }
 
-  if(isConnected()){
-      
-     Serial.print("Connectado com a rede ");
-
-     return true;
-  } 
-  else{
-    
-     Serial.println("Failed to connect to network");
-     return false;
-  }
-
-}
 
 
 void setup() {
@@ -157,19 +134,6 @@ void setup() {
    ipAddr = WiFi.localIP();
    */
 
-   
-  WiFi.softAP(softApSSID, softApPwd);
-  ipAddr = WiFi.softAPIP();
-
-  // formatting the ip address into a suitable string
-  // to be sent to the webpage
-  char buf[20];  
-  sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
-  ip = String(buf);
-  Serial.println(buf);
-  Serial.println(ip);
-  Serial.println(WiFi.localIP());
-
   // binding the handler function with websocket and 
   // websocket to the webserver.
   ws.onEvent(onWsEvent);
@@ -182,15 +146,38 @@ void setup() {
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
   });
+    
+  scanNets();
 
-  server.begin();
+  connectToNetwork();
 
+  if(!isConnected()){
+    delay(1000);
+    scanNets();
+    /*WiFi.softAP(softApSSID, softApPwd);
+    ipAddr = WiFi.softAPIP();
+
+    server.begin();
+
+    // formatting the ip address into a suitable string
+    // to be sent to the webpage
+    char buf[20];  
+    sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
+    ip = String(buf);
+    Serial.println(buf);
+    Serial.println(ip);
+    Serial.println(WiFi.localIP());
+*/
+    
+  }
+
+  
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  exportInfo();
+  //exportInfo();
   delay(4000);
   starte();
 
@@ -213,7 +200,7 @@ void exportInfo(){
         
         JsonObject root = arr.createNestedObject();
         root["netname"] = String(WiFi.SSID(i));
-        root["encryption"] = String(WiFi.encryptionType(i));
+        root["encryption"] = translateEncryptionType(WiFi.encryptionType(i));
         (WiFi.encryptionType(i) == WIFI_AUTH_OPEN)? root["opennet"] = "Yes" : root["opennet"] = "No"; 
       }
 
@@ -230,10 +217,11 @@ void exportInfo(){
 
 
 int scanNets(){
-  
+  delay(1000);
   // WiFi.scanNetworks will return the number of networks found
     int n = WiFi.scanNetworks();
     //availableNets = n;
+    if(n == WIFI_SCAN_FAILED) Serial.println("Scan Failed!");
     Serial.println("scan done");
     if (n == 0) {
         Serial.println("no networks found");
@@ -258,6 +246,71 @@ int scanNets(){
 }
 
 void starte(){
-  server.begin();
+  scanNets();
   
 }
+
+void connectToNetwork(){
+  char net[60];
+  char pass[60];
+    
+  if(network != "---" && password != "---"){ // if we have connection details in store
+    network.toCharArray(net, 60);
+      
+    if(password.length() > 0){
+      password.toCharArray(pass,60);
+      WiFi.begin(net, pass);
+    } else WiFi.begin(net);
+
+    connectedAfterTimeout();
+      
+  }
+
+
+}
+
+// function counts a timeout for connecting to a network 
+bool connectedAfterTimeout(){
+  int attemptsAcc = 0; // attempts to connect
+  
+  while(!isConnected() && (attemptsAcc < 10)){
+    delay(500);
+    Serial.println("connectando com wifi ");
+    attemptsAcc++;
+      
+  }
+
+  if(isConnected()){
+      
+     Serial.println("Connectado com a rede ");
+
+     return true;
+  } 
+  else{
+    
+     Serial.println("Failed to connect to network");
+     //WiFi.mode(WIFI_STA);
+     WiFi.disconnect();
+     return false;
+  }
+
+}
+
+String translateEncryptionType(wifi_auth_mode_t encryptionType) {
+  switch (encryptionType) {
+    case (0):
+      return "Open";
+    case (1):
+      return "WEP";
+    case (2):
+      return "WPA_PSK";
+    case (3):
+      return "WPA2_PSK";
+    case (4):
+      return "WPA_WPA2_PSK";
+    case (5):
+      return "WPA2_ENTERPRISE";
+    default:
+      return "UNKNOWN";
+    }
+  }
