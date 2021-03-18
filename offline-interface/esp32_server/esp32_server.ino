@@ -102,7 +102,7 @@ void processSelectedNet(String msg){
   // TODO: research enabling SSL security
   server.end(); // end server connection
   WiFi.softAPdisconnect(); // remove AP server
-  delay(500);
+  delay(4000);
   WiFi.begin(net, pass);
   connectedAfterTimeout();
   
@@ -154,7 +154,7 @@ void setup() {
   if(!isConnected()){
     delay(1000);
     scanNets();
-    /*WiFi.softAP(softApSSID, softApPwd);
+    WiFi.softAP(softApSSID, softApPwd);
     ipAddr = WiFi.softAPIP();
 
     server.begin();
@@ -167,7 +167,7 @@ void setup() {
     Serial.println(buf);
     Serial.println(ip);
     Serial.println(WiFi.localIP());
-*/
+
     
   }
 
@@ -177,9 +177,9 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  //exportInfo();
+  exportInfo();
   delay(4000);
-  starte();
+  //starte();
 
 }
 
