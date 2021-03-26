@@ -1,3 +1,4 @@
+
 #include "WiFi.h"
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
@@ -14,6 +15,12 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 AsyncWebSocketClient * globalClient = NULL;
+
+bool connecting = false;
+
+char net[60];
+char pass[60];
+
 
 String ip = "";
 IPAddress ipAddr;
@@ -46,6 +53,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 
     Serial.println("Websocket client connection received");
     globalClient = client;
+    exportInfo();
   }
 
   else if(type == WS_EVT_DISCONNECT){
@@ -62,7 +70,8 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       dataMsg[i] = (char) data[i];
     }
 
-    Serial.println();
+    //Serial.println();
+    connecting = true;
     recvMsg = String(dataMsg);
     processSelectedNet(dataMsg);
     
@@ -93,19 +102,16 @@ void processSelectedNet(String msg){
   Serial.println(pwd);
 
   //---- there's already a function for this in the main program ----//
-  char net[60];
-  char pass[60];
-
+  
   netname.toCharArray(net,60);
   pwd.toCharArray(pass,60);
   // TODO: research the method "beginSecure()" of server
   // TODO: research enabling SSL security
   server.end(); // end server connection
   WiFi.softAPdisconnect(); // remove AP server
-  delay(4000);
+  delay(1000);
   WiFi.begin(net, pass);
   connectedAfterTimeout();
-  
   
   
 }
@@ -177,8 +183,26 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  exportInfo();
-  delay(4000);
+  /*if(isConnected()){
+    // pass
+  } else {
+
+    if(connecting) {
+
+      //WiFi.begin(net, pass);
+      //connectedAfterTimeout();
+      connecting = false;
+
+    
+    } else{
+
+      exportInfo();
+      delay(1000);
+    
+    }
+    
+  } */
+  
   //starte();
 
 }
