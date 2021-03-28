@@ -7,7 +7,6 @@
 
 String network = "Os Silva Wi Fi";
 String password= "f0r@c0ntr0l";
-
 const char* softApSSID = "Edson_System";
 const char* softApPwd = "riptide";
 
@@ -26,6 +25,7 @@ String ip = "";
 IPAddress ipAddr;
 
 String recvMsg;
+bool msgAvailable = false;
 /*
  * Since we cannot hardcode an IP address for the webpage
  * to connect to the board server, this function replaces 
@@ -70,10 +70,15 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       dataMsg[i] = (char) data[i];
     }
 
-    //Serial.println();
-    connecting = true;
     recvMsg = String(dataMsg);
-    processSelectedNet(dataMsg);
+    Serial.println(recvMsg);
+    msgAvailable = true;
+
+    /*if(recvMsg == "refresh"){
+      exportInfo();
+    } else {
+      processSelectedNet(dataMsg);  
+    }*/
     
   }
   
@@ -182,28 +187,11 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  if (msgAvailable){
+    processSelectedNet(recvMsg);
+    msgAvailable = false;
+  }
 
-  /*if(isConnected()){
-    // pass
-  } else {
-
-    if(connecting) {
-
-      //WiFi.begin(net, pass);
-      //connectedAfterTimeout();
-      connecting = false;
-
-    
-    } else{
-
-      exportInfo();
-      delay(1000);
-    
-    }
-    
-  } */
-  
-  //starte();
 
 }
 

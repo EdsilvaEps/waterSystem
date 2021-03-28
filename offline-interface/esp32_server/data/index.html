@@ -36,7 +36,7 @@
         
       </table>
       <br>
-      <button class="btn">Refresh</button>
+      <button class="btn" onclick="refresh()">Refresh</button>
 
     </div>
 
@@ -172,6 +172,12 @@ function sendNet(netName, isOpen, pwd){
   if(ws.readyState == 1) ws.send(net);
 
 
+}
+
+function refresh(){
+
+  let str = "refresh";
+  if(ws.readyState == 1) ws.send(str);
 }
 
 // Get the element with id="defaultOpen" and click on it
