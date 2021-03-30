@@ -112,8 +112,8 @@ void processSelectedNet(String msg){
   pwd.toCharArray(pass,60);
   // TODO: research the method "beginSecure()" of server
   // TODO: research enabling SSL security
-  server.end(); // end server connection
-  WiFi.softAPdisconnect(); // remove AP server
+  //server.end(); // end server connection
+  //WiFi.softAPdisconnect(); // remove AP server
   delay(1000);
   WiFi.begin(net, pass);
   connectedAfterTimeout();
@@ -165,24 +165,26 @@ void setup() {
   if(!isConnected()){
     delay(1000);
     scanNets();
-    WiFi.softAP(softApSSID, softApPwd);
-    ipAddr = WiFi.softAPIP();
-
-    server.begin();
-
-    // formatting the ip address into a suitable string
-    // to be sent to the webpage
-    char buf[20];  
-    sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
-    ip = String(buf);
-    Serial.println(buf);
-    Serial.println(ip);
-    Serial.println(WiFi.localIP());
-
+    startServer();
     
   }
 
   
+}
+
+void startServer(){
+  WiFi.softAP(softApSSID, softApPwd);
+  ipAddr = WiFi.softAPIP();
+
+  server.begin();
+  // formatting the ip address into a suitable string
+  // to be sent to the webpage
+  char buf[20];  
+  sprintf(buf,"%d.%d.%d.%d", ipAddr[0],ipAddr[1],ipAddr[2],ipAddr[3]);
+  ip = String(buf);
+  Serial.print("go to page http://");
+  Serial.print(buf);
+  Serial.println("/html");
 }
 
 void loop() {
