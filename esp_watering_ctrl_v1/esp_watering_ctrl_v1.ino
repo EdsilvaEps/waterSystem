@@ -100,6 +100,8 @@ bool isSoftApConnected = false;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 AsyncWebSocketClient * globalClient = NULL;
+bool msgAvailable = false;
+
 // *******/SOFT AP VARIABLES **************
 
 // ******* MQTT VARIABLEs *****************
@@ -318,12 +320,6 @@ void setup() {
     timeClient.begin();
     timeClient.setTimeOffset(wprogram.gmtTimezone);
 
-    if(!isConnected()){
-      createSoftApConnection();
-    }
-    
-    
-    
 }
 
 // ***************** LOOP *********************************
@@ -360,8 +356,12 @@ void loop() {
       // for selection of network
       createSoftApConnection();
 
-      // escanear redes a cada dois segundos
-      if (isSoftApConnected) exportInfo();
+      // process user selected network.
+      // todo: make function to eventually end soft ap connection 
+      if (isSoftApConnected && msgAvailable){
+        processSelectedNet(recvMsg);
+        msgAvailable = false;
+      }
 
       if (isConnected()) state = TIME_CHECK_STATE;
       
@@ -500,7 +500,7 @@ void createSoftApConnection(){
     return;
     
   } else{
-
+    scanNets();
     Serial.println("opening soft connection");
 
     WiFi.softAP(softApSSID, softApPWD);
@@ -545,6 +545,7 @@ void endSoftApConnection(){
 /*
  * Since we need to handle information coming and going between client and server
  * this function takes care of events like "client connected" or disconnected. 
+ * TODO: add event handler for when client sends a message to server.
 */
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t * data, size_t len){
 
@@ -552,6 +553,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 
     Serial.println("Websocket client connection received");
     globalClient = client;
+    exportInfo();
   }
 
   else if(type == WS_EVT_DISCONNECT){
@@ -568,13 +570,14 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       dataMsg[i] = (char) data[i];
     }
 
-    Serial.println();
     recvMsg = String(dataMsg);
-    processSelectedNet(dataMsg);
+    Serial.println(recvMsg);
+    msgAvailable = true;
     
   }
   
 }
+
 
 /*
  * After the user selects the desired wifi network from
@@ -602,7 +605,7 @@ void processSelectedNet(String msg){
   Serial.println(pwd);
   
   connectToSelectedNet2(netname, pwd);
-  endSoftApConnection();
+  //endSoftApConnection();
     
   
 }
@@ -625,7 +628,7 @@ void exportInfo(){
         
         JsonObject root = arr.createNestedObject();
         root["netname"] = String(WiFi.SSID(i));
-        root["encryption"] = String(WiFi.encryptionType(i));
+        root["encryption"] = translateEncryptionType(WiFi.encryptionType(i));
         (WiFi.encryptionType(i) == WIFI_AUTH_OPEN)? root["opennet"] = "Yes" : root["opennet"] = "No"; 
       }
 
@@ -642,6 +645,25 @@ void exportInfo(){
   
 }
 
+// function to decode the encryption type codes.
+String translateEncryptionType(wifi_auth_mode_t encryptionType) {
+  switch (encryptionType) {
+    case (0):
+      return "Open";
+    case (1):
+      return "WEP";
+    case (2):
+      return "WPA_PSK";
+    case (3):
+      return "WPA2_PSK";
+    case (4):
+      return "WPA_WPA2_PSK";
+    case (5):
+      return "WPA2_ENTERPRISE";
+    default:
+      return "UNKNOWN";
+    }
+  }
 
 //******************/OFFLINE INTERFACE *********************
 
