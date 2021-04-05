@@ -101,6 +101,7 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 AsyncWebSocketClient * globalClient = NULL;
 bool msgAvailable = false;
+bool sendInfo = false;
 
 // *******/SOFT AP VARIABLES **************
 
@@ -286,6 +287,17 @@ void setup() {
     pinMode(serverLed, OUTPUT);
     pinMode(countingLed, OUTPUT);
 
+
+    // catching and logging different wifi events
+    WiFi.onEvent(WifiStaConnected, SYSTEM_EVENT_STA_CONNECTED);
+    WiFi.onEvent(WifiScanDone, SYSTEM_EVENT_SCAN_DONE);
+    WiFi.onEvent(WifiStaDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+    WiFi.onEvent(WifiStaStart, SYSTEM_EVENT_STA_START);
+    WiFi.onEvent(WifiStaStop, SYSTEM_EVENT_STA_STOP);
+    WiFi.onEvent(WifiAPStart, SYSTEM_EVENT_AP_START);
+    WiFi.onEvent(WifiAPStop, SYSTEM_EVENT_AP_STOP);
+    
+
     if(!SPIFFS.begin()){
       Serial.println("An error has ocurred while mounting SPIFFS");
       return;
@@ -307,8 +319,16 @@ void setup() {
     // try to get watering program from memory
     wprogram = setWProgramFromMemory();
 
+    scanNets();
+  
     // try to connect to the network 
     connectToSavedNetwork();
+
+    if(!isConnected()){
+      delay(1000);
+      scanNets();
+      createSoftApConnection();
+    }
 
     // mqtt settings 
     //espClient.setCACert(ca_cert); // SSL/TLS certificate
@@ -341,11 +361,12 @@ void loop() {
       
       else {
 
-        if(!connectToSavedNetwork()){
-          Serial.println("WiFi não conectado! Vamos tentar outra rede");
-          state = SELECT_NETWORKS_STATE;
+        state = SELECT_NETWORKS_STATE;
+        //if(!connectToSavedNetwork()){
+        //  Serial.println("WiFi não conectado! Vamos tentar outra rede");
+        //  state = SELECT_NETWORKS_STATE;
           //scanNets(); 
-        }
+        //}
           
       }
       break;
@@ -355,6 +376,10 @@ void loop() {
       // create soft ap connection
       // for selection of network
       createSoftApConnection();
+      if(sendInfo){ // this could be solved with posix
+        exportInfo(); 
+        sendInfo = false;
+      }
 
       // process user selected network.
       // todo: make function to eventually end soft ap connection 
@@ -500,7 +525,7 @@ void createSoftApConnection(){
     return;
     
   } else{
-    scanNets();
+    //scanNets();
     Serial.println("opening soft connection");
 
     WiFi.softAP(softApSSID, softApPWD);
@@ -553,7 +578,8 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 
     Serial.println("Websocket client connection received");
     globalClient = client;
-    exportInfo();
+    sendInfo = true;
+    
   }
 
   else if(type == WS_EVT_DISCONNECT){
@@ -1159,10 +1185,12 @@ void checkNetStatus(){
 
 // ***************** SCAN FOR NETWORKS *******************************
 int scanNets(){
-  
+
+  delay(1000);
   // WiFi.scanNetworks will return the number of networks found
     int n = WiFi.scanNetworks();
     availableNets = n;
+    if(n == WIFI_SCAN_FAILED) Serial.println("Scan Failed!");
     Serial.println("scan done");
     if (n == 0) {
         Serial.println("no networks found");
@@ -1270,13 +1298,21 @@ void disconnection(){
 // START CONNECTING TO MEMORY-SAVED NETWORK
 bool connectToSavedNetwork(){ 
     // using home connection
-    //getLastSavedCredentials(); // get details from last saved network
+    getLastSavedCredentials(); // get details from last saved network
     char net[60];
     char pass[60];
+
+    WiFi.disconnect(); // disconnect before trying to connect
     
     if(network != "---" && password != "---"){ // if we have connection details in store
+
+      Serial.print("Connecting to network ");
+      Serial.print(network);
+      Serial.println("...");
+
       network.toCharArray(net, 60);
       
+      WiFi.mode(WIFI_STA);
       if(password.length() > 0){
         password.toCharArray(pass,60);
         WiFi.begin(net, pass);
@@ -1325,5 +1361,47 @@ void getLastSavedCredentials(){
   preferences.end();
 }
 // END GETTING LAST SAVED CREDENTIALS FROM MEMORY
+
+//***************** LOGGING *****************************//
+void WifiScanDone(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("SCAN DONE");
+}
+
+void WifiNoAPFound(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("NO AP FOUND");
+}
+
+void WifiStaStart(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA START");
+  // makeshift fix for a problem with the connection where 
+  // the system stays locked on STA_START
+  if(!isConnected()) WiFi.disconnect();
+  
+}
+
+void WifiReadyLog(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("WIFI READY");
+}
+
+void WifiStaConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA CONNECTED");
+  if(isSoftApConnected) endSoftApConnection();
+}
+
+void WifiStaDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA DISCONNECTED");
+}
+
+void WifiStaStop(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA STOP");
+}
+
+void WifiAPStart(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("AP START");
+}
+
+void WifiAPStop(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("AP STOP");
+}
 
 // code for interruption: https://techtutorialsx.com/2017/10/07/esp32-arduino-timer-interrupts/

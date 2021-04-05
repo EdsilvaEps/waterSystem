@@ -132,6 +132,15 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
 
+   // catching and logging different wifi events
+    WiFi.onEvent(WifiStaConnected, SYSTEM_EVENT_STA_CONNECTED);
+    WiFi.onEvent(WifiScanDone, SYSTEM_EVENT_SCAN_DONE);
+    WiFi.onEvent(WifiStaDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+    WiFi.onEvent(WifiStaStart, SYSTEM_EVENT_STA_START);
+    WiFi.onEvent(WifiStaStop, SYSTEM_EVENT_STA_STOP);
+    WiFi.onEvent(WifiAPStart, SYSTEM_EVENT_AP_START);
+    WiFi.onEvent(WifiAPStop, SYSTEM_EVENT_AP_STOP);
+
   if(!SPIFFS.begin()){
     Serial.println("An error has ocurred while mounting SPIFFS");
     return;
@@ -329,3 +338,41 @@ String translateEncryptionType(wifi_auth_mode_t encryptionType) {
       return "UNKNOWN";
     }
   }
+
+
+//***************** LOGGING *****************************//
+void WifiScanDone(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("SCAN DONE");
+}
+
+void WifiNoAPFound(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("NO AP FOUND");
+}
+
+void WifiStaStart(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA START");
+}
+
+void WifiReadyLog(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("WIFI READY");
+}
+
+void WifiStaConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA CONNECTED");
+}
+
+void WifiStaDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA DISCONNECTED");
+}
+
+void WifiStaStop(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("STA STOP");
+}
+
+void WifiAPStart(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("AP START");
+}
+
+void WifiAPStop(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("AP STOP");
+}
