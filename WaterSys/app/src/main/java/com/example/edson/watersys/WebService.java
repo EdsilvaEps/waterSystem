@@ -1,44 +1,47 @@
 package com.example.edson.watersys;
 
 import android.content.Context;
-import android.net.wifi.WifiConfiguration;
 import android.util.Log;
-import android.widget.Toast;
 
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.paho.android.service.MqttAndroidClient;
-import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
+import org.eclipse.paho.client.mqttv3.internal.wire.MqttConnect;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.security.Key;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.util.Properties;
+import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 public class WebService {
 
     // source for TLS implementation:
     // https://github.com/eurbon/Paho-MQTT-Android-TCP-TLS-WSS-Example/
 
-    //public static final String BROKER = "ssl://maqiatto.com:3883";
+    public static final String SECURE_BROKER = "ssl://maqiatto.com:3883";
     public static final String BROKER = "tcp://maqiatto.com:1883";
 
     public static final String USERNAME = "netosilvan78@gmail.com";
@@ -53,12 +56,14 @@ public class WebService {
     final String TOPIC_1 = Constants.level_route;
     final String TOPIC_2 = Constants.dispense_water_route;
 
+    boolean secureConnection = true;
+
 
 
     public WebService(Context context){
 
         MqttSetup(context);
-        MqttConnect();
+        MqttConnect(context);
 
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
@@ -92,7 +97,10 @@ public class WebService {
 
     void MqttSetup(Context context){
 
-        mqttAndroidClient = new MqttAndroidClient(context, BROKER, CLIENT_ID);
+        String broker = BROKER;
+        if(secureConnection) broker = SECURE_BROKER;
+
+        mqttAndroidClient = new MqttAndroidClient(context, broker, CLIENT_ID);
         mqttConnectOptions = new MqttConnectOptions();
 
         mqttConnectOptions.setUserName(USERNAME);
@@ -105,18 +113,25 @@ public class WebService {
          * Certificate can be found in resources folder /res/raw/
          */
         if (BROKER.contains("ssl")){
+            Log.d("mqtt", "connecting to " + BROKER);
+
+            //SSLSocketFactory sslSocketFactory =
+
             SocketFactory.SocketFactoryOptions socketFactoryOptions = new SocketFactory.SocketFactoryOptions();
-            try {
-                socketFactoryOptions.withCaInputStream(context.getResources().openRawResource(R.raw.comodorsaaddtrustca));
-                mqttConnectOptions.setSocketFactory(new SocketFactory(socketFactoryOptions));
-            } catch (IOException | NoSuchAlgorithmException | KeyStoreException | CertificateException | KeyManagementException | UnrecoverableKeyException e) {
+
+            try{
+                InputStream caCrtFileI = context.getResources().openRawResource(R.raw.ca);
+                mqttConnectOptions.setSocketFactory(getSingleSocketFactory(caCrtFileI));
+            } catch (Exception e){
                 e.printStackTrace();
             }
+
+
         }
     }
 
 
-    void MqttConnect(){
+    void MqttConnect(final Context context){
 
         try{
 
@@ -135,7 +150,14 @@ public class WebService {
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     // Something went wrong e.g. connection timeout or firewall problems
-                    Log.d("mqtt:", "not connected" + asyncActionToken.toString());
+                    Log.d("mqtt:", "not connected, token:" + asyncActionToken.toString() + " msg: " + exception.getMessage() + " " + exception.getCause().toString());
+                    if(secureConnection){
+                        Log.e("mqtt", "Secure connection failed, trying regular connection");
+                        secureConnection = false;
+                        MqttSetup(context);
+                        MqttConnect(context);
+                    }
+
                 }
             });
 
@@ -229,135 +251,32 @@ public class WebService {
 
     }
 
+    //One-way authentication means that the server-side authenticates the client. The core code is as follows:
+    public static SSLSocketFactory getSingleSocketFactory(InputStream caCrtFileInputStream) throws Exception{
+        Security.addProvider(new BouncyCastleProvider());
+        X509Certificate caCert = null;
 
+        BufferedInputStream bis = new BufferedInputStream(caCrtFileInputStream);
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-
-
-
-
-
-
-    // - ---------- old --------------------
-    /*
-    public void connect() {
-
-        try {
-            final IMqttToken token = mqttAndroidClient.connect(mqttConnectOptions);
-
-            token.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-
-                    // We are connected
-                    Log.d("mqtt:", "connected, token:" + asyncActionToken.toString());
-                    DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
-                    disconnectedBufferOptions.setBufferEnabled(true);
-                    disconnectedBufferOptions.setBufferSize(100);
-                    disconnectedBufferOptions.setPersistBuffer(false);
-                    disconnectedBufferOptions.setDeleteOldestMessages(false);
-                    mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
-                    subscribeToTopic();
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    // Something went wrong e.g. connection timeout or firewall problems
-                    Log.d("mqtt:", "not connected" + asyncActionToken.toString());
-                }
-            });
-
-        } catch (MqttException e){
-            e.printStackTrace();
+        while (bis.available() > 0){
+            caCert = (X509Certificate) cf.generateCertificate(bis);
         }
+
+        Log.d("mqtt", "ca = " + caCert.getSubjectDN());
+
+        KeyStore caKs = KeyStore.getInstance(KeyStore.getDefaultType());
+        caKs.load(null, null);
+        caKs.setCertificateEntry("cert-certificate", caCert);
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(caKs);
+        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+        sslContext.init(null, tmf.getTrustManagers(), null);
+        return sslContext.getSocketFactory();
 
     }
 
-    private void subscribeToTopic() {
 
-
-
-        try {
-
-
-            IMqttToken subToken = mqttAndroidClient.subscribe(Constants.ping_path, 0);
-            subToken.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-
-                    Log.w("Mqtt","Subscribed to " + Constants.ping_path);
-                    publishToTopic(Constants.ping_path, 0, "Hey! App connected!");
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.w("Mqtt", "Subscribed fail!");
-                }
-            });
-
-
-        } catch (MqttException ex){
-            System.err.println("Exception subscribing");
-            ex.printStackTrace();
-        }
-    }
-
-    public void publishToTopic(final String topic, Integer qos, String message){
-
-        byte[] msg = message.getBytes();
-        Log.w("mqtt", "sending message " + message + " to " + Constants.change_program);
-
-        mqttConnectOptions.setWill(topic, msg, qos, false);
-
-        try {
-
-            IMqttToken token = mqttAndroidClient.connect(mqttConnectOptions);
-            token.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("mqtt:", "send done " + asyncActionToken.toString());
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.d("mqtt:", "publish error" + asyncActionToken.toString());
-                }
-            });
-
-        } catch (MqttException ex){
-            System.err.println("Exception publishing");
-            ex.printStackTrace();
-        }
-
-
-    }
-
-    public boolean isConnected(){
-
-        return mqttAndroidClient.isConnected();
-    }
-
-    void disconnect() {
-        try {
-            IMqttToken disconToken = mqttAndroidClient.disconnect();
-            disconToken.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("mqtt:", "disconnected");
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken,
-                                      Throwable exception) {
-
-
-                    Log.d("mqtt:", "couldnt disconnect");
-                }
-            });
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-
-    } */
 
 
 

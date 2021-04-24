@@ -1,4 +1,4 @@
-#include <ArduinoJson.h>
+ #include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include <ssl_client.h>
 #include <WiFi.h>
@@ -17,6 +17,8 @@
 
 #define PREFS "my-app"
 #define MANAUSGMT -14400 // MANAUS GMT TIME = -4
+
+#define SECURE_CONNECTION 1
 
 // maquina de estados do loop principal
 #define CHECK_CONNECTION_STATE 0 
@@ -43,36 +45,24 @@ bool conncted = false;
 // certificado para acesso usando TLS
 const char* ca_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
-"MIIFdDCCBFygAwIBAgIQJ2buVutJ846r13Ci/ITeIjANBgkqhkiG9w0BAQwFADBv\n" \
-"MQswCQYDVQQGEwJTRTEUMBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFk\n" \
-"ZFRydXN0IEV4dGVybmFsIFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBF\n" \
-"eHRlcm5hbCBDQSBSb290MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFow\n" \
-"gYUxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAO\n" \
-"BgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBMaW1pdGVkMSswKQYD\n" \
-"VQQDEyJDT01PRE8gUlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIICIjANBgkq\n" \
-"hkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAkehUktIKVrGsDSTdxc9EZ3SZKzejfSNw\n" \
-"AHG8U9/E+ioSj0t/EFa9n3Byt2F/yUsPF6c947AEYe7/EZfH9IY+Cvo+XPmT5jR6\n" \
-"2RRr55yzhaCCenavcZDX7P0N+pxs+t+wgvQUfvm+xKYvT3+Zf7X8Z0NyvQwA1onr\n" \
-"ayzT7Y+YHBSrfuXjbvzYqOSSJNpDa2K4Vf3qwbxstovzDo2a5JtsaZn4eEgwRdWt\n" \
-"4Q08RWD8MpZRJ7xnw8outmvqRsfHIKCxH2XeSAi6pE6p8oNGN4Tr6MyBSENnTnIq\n" \
-"m1y9TBsoilwie7SrmNnu4FGDwwlGTm0+mfqVF9p8M1dBPI1R7Qu2XK8sYxrfV8g/\n" \
-"vOldxJuvRZnio1oktLqpVj3Pb6r/SVi+8Kj/9Lit6Tf7urj0Czr56ENCHonYhMsT\n" \
-"8dm74YlguIwoVqwUHZwK53Hrzw7dPamWoUi9PPevtQ0iTMARgexWO/bTouJbt7IE\n" \
-"IlKVgJNp6I5MZfGRAy1wdALqi2cVKWlSArvX31BqVUa/oKMoYX9w0MOiqiwhqkfO\n" \
-"KJwGRXa/ghgntNWutMtQ5mv0TIZxMOmm3xaG4Nj/QN370EKIf6MzOi5cHkERgWPO\n" \
-"GHFrK+ymircxXDpqR+DDeVnWIBqv8mqYqnK8V0rSS527EPywTEHl7R09XiidnMy/\n" \
-"s1Hap0flhFMCAwEAAaOB9DCB8TAfBgNVHSMEGDAWgBStvZh6NLQm9/rEJlTvA73g\n" \
-"JMtUGjAdBgNVHQ4EFgQUu69+Aj36pvE8hI6t7jiY7NkyMtQwDgYDVR0PAQH/BAQD\n" \
-"AgGGMA8GA1UdEwEB/wQFMAMBAf8wEQYDVR0gBAowCDAGBgRVHSAAMEQGA1UdHwQ9\n" \
-"MDswOaA3oDWGM2h0dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9BZGRUcnVzdEV4dGVy\n" \
-"bmFsQ0FSb290LmNybDA1BggrBgEFBQcBAQQpMCcwJQYIKwYBBQUHMAGGGWh0dHA6\n" \
-"Ly9vY3NwLnVzZXJ0cnVzdC5jb20wDQYJKoZIhvcNAQEMBQADggEBAGS/g/FfmoXQ\n" \
-"zbihKVcN6Fr30ek+8nYEbvFScLsePP9NDXRqzIGCJdPDoCpdTPW6i6FtxFQJdcfj\n" \
-"Jw5dhHk3QBN39bSsHNA7qxcS1u80GH4r6XnTq1dFDK8o+tDb5VCViLvfhVdpfZLY\n" \
-"Uspzgb8c8+a4bmYRBbMelC1/kZWSWfFMzqORcUx8Rww7Cxn2obFshj5cqsQugsv5\n" \
-"B5a6SE2Q8pTIqXOi6wZ7I53eovNNVZ96YUWYGGjHXkBrI/V5eu+MtWuLt29G9Hvx\n" \
-"PUsE2JOAWVrgQSQdso8VYFhH2+9uRv0V9dlfmrPb2LjkQLPNlzmuhbsdjrzch5vR\n" \
-"pu/xO28QOG8=\n" \
+"MIIDPzCCAicCFAgB/9E66qY666QwZU3U+uX/sk7QMA0GCSqGSIb3DQEBCwUAMFwx\n" \
+"CzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl\n" \
+"cm5ldCBXaWRnaXRzIFB0eSBMdGQxFTATBgNVBAMMDG1hcWlhdHRvLmNvbTAeFw0y\n" \
+"MDA1MDMxNTU4NTZaFw0yMTA0MjgxNTU4NTZaMFwxCzAJBgNVBAYTAkFVMRMwEQYD\n" \
+"VQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBM\n" \
+"dGQxFTATBgNVBAMMDG1hcWlhdHRvLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP\n" \
+"ADCCAQoCggEBAPQUxGPAcCiAhIDvNWGh2UFhtVAEu9JiadWRzBPaWgwePvFfHtNN\n" \
+"isiqLpPB39+IsOEaya9W6izpF9dNdEsLZX0oKKv1JzBYFuBskQOb4oLqEOztnxf7\n" \
+"jq15mYTpim/6rL6d4VzwfHDH02TxBgM8cVPPJIjN8qfymWXB1Rb8phT6q1wT8tey\n" \
+"TgOHwm8BmCk+7UX6j5gT9LB5nDCZOmjcK9m/wYE9xQBmxevGbYlFt5woXjpE+BTa\n" \
+"DeXVZMum5gqkJ1CvviwoNkFbAUJ5e619gGJfL2HOre7ckHPLRjplCWacNb6eHe3R\n" \
+"0tZFNaDphGL8hyUnPK+CnFG+B4d7JqKliq8CAwEAATANBgkqhkiG9w0BAQsFAAOC\n" \
+"AQEAA+V0DyO/RDqCEWBrPDByEzNSharBL/ig8Mr9z+AoU0dLmmb8kwpPO1hJUTdh\n" \
+"uARNHg8HyeoHlPqEDlfP2+KDqvHZmWRx5GSBHMPFYvaDLk9237nueEmTPM3cdVFh\n" \
+"ZQPI7gwlYxO6hvqtHpHb4erOLXpQSHl06tE75akM0BS9ve1t0rvDBk/YbB7sIUei\n" \
+"30NF8LdIgDZPBDOPvGRvXm3ib20S8fkHTgNMEsGuPjrk41glH6nONlDzQ+8NbXwo\n" \
+"B9AWDQG54xUYDpOwM/LTRdvYfFMH9+U8nXCRO+xD89R80BQkeFz9On5tf6y2D8Pl\n" \
+"79gL077l7yk/UUsZukhkpzFnrg==\n" \
 "-----END CERTIFICATE-----\n";
 
 
@@ -106,10 +96,11 @@ bool sendInfo = false;
 // *******/SOFT AP VARIABLES **************
 
 // ******* MQTT VARIABLEs *****************
+bool secureConnect = true;
 // mqtt broker currently running on maqiatto
 const char* mqttServer = "maqiatto.com";
 const int mqttPort= 1883; // tcp port 
-//const int mqttPort= 3883; // tls port
+const int secureMqttPort= 3883; // tls port
 const char* mqttUser = "netosilvan78@gmail.com";
 const char* mqttPassword = "y4NW1jgJi3b7";
 
@@ -126,10 +117,15 @@ const char* pingPath = "netosilvan78@gmail.com/system/ping";
 const char* wateredMessage = "JUST_WATERED";
 const char* lowLvMessage = "LOW_WATER";
 
-
+#ifdef SECURE_CONNECTION
+WiFiClientSecure espClient;
+#else
 WiFiClient espClient;
-//WiFiClientSecure espClient;
+#endif
+
 PubSubClient client(espClient);
+
+
 
 // NTP Client for time variables
 WiFiUDP ntpUDP;
@@ -1049,15 +1045,29 @@ bool reconnectToBroker(){
 
   int reconnectionDelay = 1000;
   int connectionAttempts = 0;
-  client.setServer(mqttServer, mqttPort);
-  client.setCallback(callback);
+  int mqttPortInfo;
+
 
   Serial.print("Tentando conexão com o broker ");
+  if(secureConnect){
+    espClient.setCACert(ca_cert);
+    client.setServer(mqttServer, secureMqttPort);
+    Serial.print("(TLS) ");
+    mqttPortInfo = secureMqttPort;
+  } 
+  else{
+    client.setServer(mqttServer, mqttPort);
+    mqttPortInfo = mqttPort;  
+  }
+  
+  client.setCallback(callback);
+
+  
   Serial.println(mqttServer);
   Serial.print("Usuario: ");
   Serial.println(mqttUser);
   Serial.print("Porta: ");
-  Serial.println(mqttPort);
+  Serial.println(mqttPortInfo);
   
   while(!client.connected() && (connectionAttempts < 30)){
     
@@ -1068,7 +1078,7 @@ bool reconnectToBroker(){
       
       Serial.println("Conectado ao Broker!");
       client.subscribe(subscribeTimingPath);
-      //client.subscribe(subscribeCtrlPath);
+      client.subscribe(subscribeCtrlPath);
       client.subscribe(subscribeAmountPath);
       client.subscribe(publishReport);
       client.subscribe(setupWateringProgram);
