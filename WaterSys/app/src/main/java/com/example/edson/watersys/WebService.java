@@ -49,6 +49,9 @@ public class WebService {
 
     public MqttAndroidClient mqttAndroidClient;
     public MqttConnectOptions mqttConnectOptions;
+    private Integer qos;
+    private boolean retain; // retain message on the broker or not
+
 
     // TODO: eventually, at some point, maybe, create a settings page to change those data below
     public static final String CLIENT_ID = "waterSysApp";
@@ -56,14 +59,17 @@ public class WebService {
     final String TOPIC_1 = Constants.level_route;
     final String TOPIC_2 = Constants.dispense_water_route;
 
-    boolean secureConnection = true;
+    private boolean secureConnection = true;
 
 
 
     public WebService(Context context){
 
+        this.qos = 0;
+        this.retain = false;
         MqttSetup(context);
         MqttConnect(context);
+
 
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
@@ -198,15 +204,15 @@ public class WebService {
     void publish(String topic, String msg){
 
         // qos 0
-        Log.d("mqqt: ", "sending msg " + msg + " to " + topic);
+        Log.d("mqqt: ", "sending msg " + msg + " with qos: " + this.qos  + " to " + topic);
 
         byte[] encodedPayload = new byte[0];
         try {
             encodedPayload = msg.getBytes("UTF-8");
             MqttMessage message = new MqttMessage(encodedPayload);
             message.setId(5866);
-            message.setRetained(false);
-            message.setQos(0);
+            message.setRetained(this.retain);
+            message.setQos(this.qos);
             mqttAndroidClient.publish(topic, message);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -219,8 +225,17 @@ public class WebService {
     }
 
     public void publishToTopic(final String topic, Integer qos, String message){
+        this.qos = qos;
+        if (message.equals(Constants.dispense_water_route)) this.retain = false;
         publish(topic, message);
     }
+
+    public void publishToTopic(final String topic, Integer qos, String message, Boolean retain){
+        this.qos = qos;
+        this.retain = retain;
+        publish(topic, message);
+    }
+
 
     public boolean isConnected(){
 

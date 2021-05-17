@@ -225,7 +225,8 @@ public class MainC extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // send message to broker if connected
-                webService.publishToTopic(Constants.dispense_water_route, 0, "1");
+                //webService.publishToTopic(Constants.dispense_water_route, 0, "1");
+                webService.publishToTopic(Constants.dispense_water_route, 1, "1", false);
                 //if(webService.isConnected()){
                 //    webService.publishToTopic(Constants.dispense_water_route, 0, "1");
                 //} else{
@@ -473,7 +474,7 @@ public class MainC extends AppCompatActivity {
     public void pendingMsgHander(){
         Log.e(TAG, "checking pending messages: " + pendingMsg);
         if(pendingMsg.equals(Constants.dispense_water_route)){
-            webService.publishToTopic(Constants.dispense_water_route, 0, "1");
+            webService.publishToTopic(Constants.dispense_water_route, 0, "2");
 
         } else if(pendingMsg.equals(Constants.change_program)){
             setupCurrentPlanUI();

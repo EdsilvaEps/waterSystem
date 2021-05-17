@@ -9,7 +9,7 @@ import java.util.List;
 public interface Constants {
 
     // MQTT route constants
-    public static final String dispense_water_route = "netosilvan78@gmail.com/system/control/dispense";
+    public static final String dispense_water_route = "netosilvan78@gmail.com/system/control/dispenseWater";
     //public static final String schedule_route = "system/app/timing";
     //public static final String amount_route = "system/app/amount";
     //public static final String days_route = "system/app/days";

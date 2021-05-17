@@ -270,7 +270,7 @@ public class PlanSelectionFragment extends Fragment {
                         // send data about change to broker
                         if(webService.isConnected()){
                             Log.w(TAG, "service connected, sending message...");
-                            webService.publishToTopic(Constants.change_program, 0, plan.getJsonString());
+                            webService.publishToTopic(Constants.change_program, 0, plan.getJsonString(), true);
 
                             //webService.publishToTopic(Constants.schedule_route, 0, plan.getTime().toString());
                             //webService.publishToTopic(Constants.amount_route, 0, plan.getAmount().toString());

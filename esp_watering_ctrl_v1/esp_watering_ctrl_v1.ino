@@ -1,4 +1,4 @@
- #include <ArduinoJson.h>
+#include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include <ssl_client.h>
 #include <WiFi.h>
@@ -104,7 +104,7 @@ const int secureMqttPort= 3883; // tls port
 const char* mqttUser = "netosilvan78@gmail.com";
 const char* mqttPassword = "y4NW1jgJi3b7";
 
-const char* subscribeCtrlPath = "netosilvan78@gmail.com/system/control/dispense";
+const char* subscribeCtrlPath = "netosilvan78@gmail.com/system/control/dispenseWater";
 const char* subscribeTimingPath = "netosilvan78@gmail.com/system/api/timing";
 const char* subscribeAmountPath = "netosilvan78@gmail.com/system/app/amount";
 const char* publishTempPath = "netosilvan78@gmail.com/system/hardware/temp";
@@ -163,6 +163,7 @@ bool lv3 = false;
 
 WateringProgram wprogram;
 
+int soilSensorPower = 35; // GPIO 35
 int soilSensorPin = 34; // GPIO 34 (Analog ADC1_CH6) 
 int drySoilThreshold = 3800;
 int soilHumidity = 0;
@@ -268,6 +269,7 @@ void setup() {
     //pinMode(LED_BUILTIN, OUTPUT);
     pinMode(pumpPin, OUTPUT);
     pinMode(soilSensorPin, INPUT);
+    pinMode(soilSensorPower, OUTPUT);
 
     // configuring interruption pins
     pinMode(level1Interrupt, INPUT_PULLUP);
@@ -459,7 +461,7 @@ void loop() {
       if(wprogram.automaticWatering == true && currMins != lastSoilMCheckedMinute && isMinute5Multiple()){
         // if soil is dry and plants havent been watered in the current hour
         Serial.println("soil humidity checking");
-        if(isSoilDry() && (lastWateredHour != timeClient.getHours())){
+        if(isSoilDry() && (getLastWateredStatus() != timeClient.getHours())){
           pumpAction(wprogram.amountWater);
         }
         
@@ -700,6 +702,8 @@ bool isMinute5Multiple(){
    (test the threshold values with sensor inside plant */
 bool isSoilDry(){
 
+  digitalWrite(soilSensorPower, HIGH);
+  delay(500);
   soilHumidity = analogRead(soilSensorPin);
   lastSoilMCheckedMinute = timeClient.getMinutes();
 
@@ -715,6 +719,9 @@ bool isSoilDry(){
     Serial.println(soilHumidity);
     return false;
   }
+
+  digitalWrite(soilSensorPower, LOW);
+  
 
 }
 
@@ -732,7 +739,7 @@ void sendHSensorStatusMessage(int humidity){
   JsonObject root = jsonMsg.to<JsonObject>();
   //JsonObject& root = jsonMsg.createObject();
   root["type"] = "moistureSensor";
-  root["lastWatered"] = lastWateredHour;
+  root["lastWatered"] = getLastWateredStatus();
   root["message"] = statusMsg;
 
   char msgToSend[80];
@@ -745,6 +752,7 @@ void sendHSensorStatusMessage(int humidity){
   
   
 }
+
 
 //******************/MOISTURE SENSOR ***********************
 
@@ -828,7 +836,8 @@ void pumpAction(long int quantity){
     Serial.println("realizando regagem");
     int pumpDelay = (quantity/49)*1000;
     isWatering = true;
-    lastWateredHour = timeClient.getHours();
+    //lastWateredHour = timeClient.getHours();
+    setLastWateredStatus(timeClient.getHours());
     
 
     // create an async task for pumping water
@@ -904,6 +913,30 @@ WateringProgram getBasicProgram(){
   
 }
 
+void setLastWateredStatus(int lStatus){
+
+    Serial.println("[FUNCTION] setLastWateredStatus()");
+
+    preferences.begin(PREFS, false);
+    preferences.putInt("lastWatered", lStatus);
+    preferences.end();
+
+}
+
+
+int getLastWateredStatus(){
+
+    Serial.println("[FUNCTION] getLastWateredStatus()");
+
+    preferences.begin(PREFS, false);
+    int lStatus = preferences.getInt("lastWatered", -1);
+    preferences.end();
+
+    return lStatus;
+
+}
+
+
 // ***************** /PROGRAM FUNCTIONS ************************
 
 
@@ -970,7 +1003,7 @@ void callback(char* topic, byte* payload, unsigned int length){
     mqttMessage[i] = (char)payload[i];
     Serial.print((char)payload[i]);
   }*/
-
+  
   if(isPath(topic, subscribeCtrlPath)) {
     state = PERFORMING_WATERING_STATE;
     publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
