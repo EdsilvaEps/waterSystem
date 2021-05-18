@@ -452,6 +452,8 @@ void loop() {
       // of the other level sensors in previous times to assure if tank
       // is going up or down.
 
+      checkWaterLevel();
+
       /* if automatic watering is enabed, the "verifySoilHumidty" function
          shall water the plants when above a certain dryness threshold, otherwise the 
          values of soil sensor will be simply registered on a global var.
@@ -492,7 +494,73 @@ void loop() {
   
 }
 
+
 // ***************** /LOOP *********************************
+
+//**
+void checkWaterLevel(){
+
+  //TODO: get those values from the sensors
+  bool level1 = true;
+  bool level2 = true; 
+  bool level3 = false;
+  int absLevel = 0; // local level
+
+  if(level1) absLevel = 30;
+  if(level2 && level1) absLevel = 50;
+  if(level3 && level2 && level1) absLevel = 75;
+
+  if(absLevel != waterLevel){
+    waterLevel = absLevel;
+    setLevel(absLevel);
+    broadcastWaterLevel();
+  }
+
+  
+}
+
+void setLevel(int level){
+  Serial.println("[FUNCTION] setLevel()");
+
+  preferences.begin(PREFS, false);
+  preferences.putInt("waterLevel", level);
+  preferences.end();
+
+  
+}
+
+int getLevel(){
+  Serial.println("[FUNCTION] getLevel()");
+
+  preferences.begin(PREFS, false);
+  int level = preferences.getInt("waterLevel", 0);
+  preferences.end();
+
+  return level;
+  
+}
+
+void broadcastWaterLevel(){
+  Serial.println("[FUNCTION] broadcastWaterLevel()");
+
+  StaticJsonDocument<200> jsonMsg;
+  JsonObject root = jsonMsg.to<JsonObject>();
+  //JsonObject& root = jsonMsg.createObject();
+  root["type"] = "levelSensor";
+  root["waterLevel"] = waterLevel;
+
+  char msgToSend[80];
+  serializeJson(root, msgToSend);
+  Serial.println("Sending status msg:");
+  Serial.println(msgToSend);
+  Serial.println("");
+  publishMsg(pingPath,msgToSend);
+  
+}
+
+//**
+
+
 
 //****************** OFFLINE INTERFACE *********************
 
