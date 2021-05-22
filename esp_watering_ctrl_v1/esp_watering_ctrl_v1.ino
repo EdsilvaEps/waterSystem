@@ -69,10 +69,12 @@ const char* ca_cert = \
 
 volatile int interruptCounter = 0;
 
-// pinos de interrupção dos sensores
-int level1Interrupt = 14;
-int level2Interrupt = 27;
-int level3Interrupt = 26;
+// pinos dos sensores de nivel de agua
+int level1 = 14;
+int level2 = 27;
+int level3 = 26;
+
+int waterLevel = 0;
 
 int serverLed = 25;
 int countingLed = 33;
@@ -155,12 +157,6 @@ bool debounce[3] = {false, false, false}; // debounce vars for the 3 lvl sensors
 const int maxAttemptsAtScheduling = 3;
 int attemptsAtScheduling = 0;
 
-volatile unsigned int waterLevel = 0; // modified by level interruptions
-// variables to track the sensors 
-bool lv1 = false;
-bool lv2 = false;
-bool lv3 = false;
-
 WateringProgram wprogram;
 
 int soilSensorPower = 35; // GPIO 35
@@ -189,76 +185,6 @@ void IRAM_ATTR onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-//BluetoothSerial SerialBT;
-
-void IRAM_ATTR levelChange1(){
-
-  // toggle the related debouncer 
-  // and change level
-  if(!debounce[0]){
-
-    lv1 = !lv1;
-
-    // if water above the level 1 sensor
-    // then it's about < 50
-    // if below then it's < 40
-    if(lv1) waterLevel = 50;
-    else waterLevel = 40;
-    
-    debounce[0] = !debounce[0];
-
-    Serial.print("level: ");
-    Serial.print(waterLevel);
-    Serial.print(" | debouncer: ");
-    Serial.println(debounce[0]);
-    
-    
-  }
-  
- 
-  
-}
-
-void IRAM_ATTR levelChange2(){
-
-  // toggle the related debouncer 
-  // and change level
-  if(!debounce[1]){
-
-    lv2 = !lv2;
-    
-    // if water above the level 2 sensor
-    // then it's about < 70
-    // if below then it's < 50
-    if(lv2) waterLevel = 70;
-    else waterLevel = 50;
-    
-    debounce[1] = !debounce[1];
-    
-  }
-
-  
-}
-
-void IRAM_ATTR levelChange3(){
-
-  // toggle the related debouncer 
-  // and change level
-  if(!debounce[2]){
-
-    lv3 = !lv3;
-    
-    // if water above the level 2 sensor
-    // then it's about < 90
-    // if below then it's < 70
-    if(lv3) waterLevel = 90;
-    else waterLevel = 70;
-    
-    debounce[1] = !debounce[1];
-    
-  }
-
-}
 
 void setup() {
     // put your setup code here, to run once:
@@ -271,15 +197,10 @@ void setup() {
     pinMode(soilSensorPin, INPUT);
     pinMode(soilSensorPower, OUTPUT);
 
-    // configuring interruption pins
-    pinMode(level1Interrupt, INPUT_PULLUP);
-    pinMode(level2Interrupt, INPUT_PULLUP);
-    pinMode(level3Interrupt, INPUT_PULLUP);
-    
-    // attaching interruptions linked to the water sensors
-    attachInterrupt(level1Interrupt, levelChange1, CHANGE);
-    attachInterrupt(level2Interrupt, levelChange2, CHANGE);
-    attachInterrupt(level3Interrupt, levelChange3, CHANGE);
+    // configuring level sensor pins
+    pinMode(level1, INPUT);
+    pinMode(level2, INPUT);
+    pinMode(level3, INPUT);
 
     pinMode(dataLed, OUTPUT);
     pinMode(serverLed, OUTPUT);
@@ -497,18 +418,29 @@ void loop() {
 
 // ***************** /LOOP *********************************
 
-//**
+//****************** LEVEL SENSORS *************************
+
 void checkWaterLevel(){
 
-  //TODO: get those values from the sensors
-  bool level1 = true;
-  bool level2 = true; 
-  bool level3 = false;
   int absLevel = 0; // local level
 
-  if(level1) absLevel = 30;
-  if(level2 && level1) absLevel = 50;
-  if(level3 && level2 && level1) absLevel = 75;
+  int l1, l2, l3;
+  l1 = digitalRead(level1);
+  l2 = digitalRead(level2);
+  l3 = digitalRead(level3); // this one works
+  
+  //Serial.print("Level 1: ");
+  //Serial.println(l2);
+  //Serial.print("Level 2: ");
+  //Serial.println(l2);
+  //Serial.print("Level 3: ");
+  //Serial.println(l3);
+  
+
+  if(l1) absLevel = 30;
+  if(l2 && l1) absLevel = 50;
+  if(l3 && l2 && l1) absLevel = 75;
+  if(l3 && !l1 || l3 && !l2 && l1 || l2 && !l1) absLevel = -1; // malfunctioning sensor
 
   if(absLevel != waterLevel){
     waterLevel = absLevel;
@@ -558,8 +490,7 @@ void broadcastWaterLevel(){
   
 }
 
-//**
-
+//****************** /LEVEL SENSORS *************************
 
 
 //****************** OFFLINE INTERFACE *********************
