@@ -18,7 +18,7 @@
 #define PREFS "my-app"
 #define MANAUSGMT -14400 // MANAUS GMT TIME = -4
 
-#define SECURE_CONNECTION 1
+#define SECURE_CONNECTION 0
 
 // maquina de estados do loop principal
 #define CHECK_CONNECTION_STATE 0 
@@ -66,7 +66,6 @@ const char* ca_cert = \
 "-----END CERTIFICATE-----\n";
 
 
-
 volatile int interruptCounter = 0;
 
 // pinos dos sensores de nivel de agua
@@ -98,7 +97,7 @@ bool sendInfo = false;
 // *******/SOFT AP VARIABLES **************
 
 // ******* MQTT VARIABLEs *****************
-bool secureConnect = true;
+bool secureConnect = false;
 // mqtt broker currently running on maqiatto
 const char* mqttServer = "maqiatto.com";
 const int mqttPort= 1883; // tcp port 
@@ -115,15 +114,16 @@ const char* publishReqNextSchedule = "netosilvan78@gmail.com/system/hardware/nex
 const char* setupWateringProgram = "netosilvan78@gmail.com/system/hardware/setupProgram";
 const char* publishReport = "netosilvan78@gmail.com/system/report";
 const char* pingPath = "netosilvan78@gmail.com/system/ping";
+const char* powerPath = "netosilvan78@gmail.com/power";
 
 const char* wateredMessage = "JUST_WATERED";
 const char* lowLvMessage = "LOW_WATER";
 
-#ifdef SECURE_CONNECTION
-WiFiClientSecure espClient;
-#else
+//#ifdef SECURE_CONNECTION
+//WiFiClientSecure espClient;
+//#else
 WiFiClient espClient;
-#endif
+//#endif
 
 PubSubClient client(espClient);
 
@@ -399,7 +399,8 @@ void loop() {
      // here watering will happen when conditions are met
      // this part is skipped for now
      Serial.println("realizando regagem.");
-     publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
+     //publishMsg(pingPath, "okei! Vou jogar uma aguinha"); 
+     testWateringSendMsg();
      pumpAction(wprogram.amountWater);
      state = CHECK_CONNECTION_STATE; // restart cicle
       
@@ -416,7 +417,24 @@ void loop() {
 }
 
 
+
 // ***************** /LOOP *********************************
+
+//TODO: make this a generic function to send
+// all types of status messages
+void testWateringSendMsg(){
+   StaticJsonDocument<200> jsonMsg;
+   JsonObject root = jsonMsg.to<JsonObject>();
+   root["type"] = "wateringNow";
+   root["waterVolume"] = wprogram.amountWater;
+
+   char msgToSend[80];
+   serializeJson(root, msgToSend);
+   Serial.println("Sending status msg:");
+   Serial.println(msgToSend);
+   Serial.println("");
+   publishMsg(pingPath, msgToSend);
+}
 
 //****************** LEVEL SENSORS *************************
 
@@ -731,15 +749,15 @@ void sendHSensorStatusMessage(int humidity){
   String humidityStr = String(humidity);
   statusMsg.reserve(30);
 
-  statusMsg = "Dryness: ";
-  statusMsg += humidityStr;
+  //statusMsg = "Dryness: ";
+  statusMsg = humidityStr;
 
   StaticJsonDocument<200> jsonMsg;
   JsonObject root = jsonMsg.to<JsonObject>();
   //JsonObject& root = jsonMsg.createObject();
   root["type"] = "moistureSensor";
   root["lastWatered"] = getLastWateredStatus();
-  root["message"] = statusMsg;
+  root["Dryness"] = statusMsg;
 
   char msgToSend[80];
   serializeJson(root, msgToSend);
@@ -1082,10 +1100,10 @@ bool reconnectToBroker(){
 
   Serial.print("Tentando conexão com o broker ");
   if(secureConnect){
-    espClient.setCACert(ca_cert);
-    client.setServer(mqttServer, secureMqttPort);
-    Serial.print("(TLS) ");
-    mqttPortInfo = secureMqttPort;
+    //espClient.setCACert(ca_cert);
+    //client.setServer(mqttServer, secureMqttPort);
+    //Serial.print("(TLS) ");
+    //mqttPortInfo = secureMqttPort;
   } 
   else{
     client.setServer(mqttServer, mqttPort);
@@ -1100,13 +1118,22 @@ bool reconnectToBroker(){
   Serial.println(mqttUser);
   Serial.print("Porta: ");
   Serial.println(mqttPortInfo);
+
+  // power off will message
+  StaticJsonDocument<200> jsonMsg;
+  JsonObject root = jsonMsg.to<JsonObject>();
+  root["type"] = "powerStatus";
+  root["powerOn"] = false;
+  char willMsg[80];
+  serializeJson(root, willMsg);
+
   
   while(!client.connected() && (connectionAttempts < 30)){
     
     Serial.print("tentativas ");
     Serial.println(connectionAttempts);
     
-    if(client.connect("EddiesHomeWS",mqttUser,mqttPassword, NULL, 0, false, NULL, true)){
+    if(client.connect("EddiesHomeWS",mqttUser,mqttPassword, powerPath, 2, true, willMsg, true)){
       
       Serial.println("Conectado ao Broker!");
       client.subscribe(subscribeTimingPath);
@@ -1114,7 +1141,21 @@ bool reconnectToBroker(){
       client.subscribe(subscribeAmountPath);
       client.subscribe(publishReport);
       client.subscribe(setupWateringProgram);
-      publishMsg(pingPath, "Olá! Dispositvo SmartFarm conectado!");
+      //client.subscribe(powerPath);
+      //publishMsg(pingPath, "Olá! Dispositvo SmartFarm conectado!{}");
+
+      //StaticJsonDocument<200> jsonMsg;
+      //JsonObject root = jsonMsg.to<JsonObject>();
+      root["type"] = "powerStatus";
+      root["powerOn"] = true;
+
+      char msgToSend[80];
+      serializeJson(root, msgToSend);
+      Serial.println("Sending status msg:");
+      Serial.println(msgToSend);
+      Serial.println("");
+      //publishMsg(pingPath, msgToSend);
+      client.publish(powerPath, msgToSend, true);
       return true;
       
     } 
@@ -1173,7 +1214,7 @@ bool isConnected(){
 bool connectedAfterTimeout(String net, String pwd){
   int attemptsAcc = 0; // attempts to connect
   
-  while(!isConnected() && (attemptsAcc < 10)){
+  while(!isConnected() && (attemptsAcc < 20)){
     delay(500);
     Serial.print("connectando com wifi ");
     Serial.println(net);
@@ -1432,6 +1473,7 @@ void WifiStaConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 
 void WifiStaDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("STA DISCONNECTED");
+  conncted = false;
 }
 
 void WifiStaStop(WiFiEvent_t event, WiFiEventInfo_t info){

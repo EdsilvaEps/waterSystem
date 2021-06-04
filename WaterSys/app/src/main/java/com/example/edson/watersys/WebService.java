@@ -56,10 +56,10 @@ public class WebService {
     // TODO: eventually, at some point, maybe, create a settings page to change those data below
     public static final String CLIENT_ID = "waterSysApp";
 
-    final String TOPIC_1 = Constants.level_route;
+    final String TOPIC_1 = Constants.ping_path;
     final String TOPIC_2 = Constants.dispense_water_route;
 
-    private boolean secureConnection = true;
+    private boolean secureConnection = false;
 
 
 
@@ -74,10 +74,12 @@ public class WebService {
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
+                Log.d("mqtt", "mqtt connected!");
 
             }
             @Override
             public void connectionLost(Throwable cause) {
+                Log.d("mqtt", "connection lost! " + cause.toString());
 
             }
 
@@ -151,6 +153,7 @@ public class WebService {
                     subscribe(TOPIC_2, (byte) 1);
 
 
+
                 }
 
                 @Override
@@ -159,9 +162,9 @@ public class WebService {
                     Log.d("mqtt:", "not connected, token:" + asyncActionToken.toString() + " msg: " + exception.getMessage() + " " + exception.getCause().toString());
                     if(secureConnection){
                         Log.e("mqtt", "Secure connection failed, trying regular connection");
-                        secureConnection = false;
-                        MqttSetup(context);
-                        MqttConnect(context);
+                        secureConnection = false; // TODO: make this reconnection outside
+                        //MqttSetup(context);
+                        //MqttConnect(context);
                     }
 
                 }

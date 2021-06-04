@@ -46,6 +46,8 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -253,23 +255,23 @@ public class MainC extends AppCompatActivity {
 
 
         switch (lvl){
-            case "5":
+            case "0":
                 tank_img.setImageResource(R.mipmap.tank_5_percent_fg);
                 level_txt.setText("under 5%");
                 break;
-            case "40":
+            case "30":
                 tank_img.setImageResource(R.mipmap.tank20pcent_fg);
-                level_txt.setText("under 20%");
+                level_txt.setText("around 30%");
                 break;
 
             case "50":
                 tank_img.setImageResource(R.mipmap.tank50pcent_fg);
-                level_txt.setText("under 50%");
+                level_txt.setText("around 50%");
                 break;
 
-            case "70":
+            case "75":
                 tank_img.setImageResource(R.mipmap.tank70pcent_fg);
-                level_txt.setText("under 70%");
+                level_txt.setText("75% or above");
                 break;
 
             case "90":
@@ -327,6 +329,7 @@ public class MainC extends AppCompatActivity {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
                 //setConnectionStatus(true);
+                Log.d("mqtt", "connection complete! server: " + serverURI + ", subscribing...");
                 webService.publishToTopic(Constants.report, 0, "1");
                 pendingMsgHander(); // check if there are pending messages to be sent
             }
@@ -335,17 +338,18 @@ public class MainC extends AppCompatActivity {
             public void connectionLost(Throwable cause) {
                 // do something
                 //setConnectionStatus(false);
+                Log.d("mqtt", "connection lost: " + cause.toString());
             }
 
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 //setConnectionStatus(true);
-
+                Log.d("mqtt", "message received: " + topic + ": " + message.toString());
                 // decodes and interprets received messages
-                if(topic.equals(Constants.level_route)){
+                if(topic.equals(Constants.ping_path)){
                     String msg = new String(message.getPayload(), "UTF-8");
-                    setupLvl(msg);
-                    saveLevelData(msg, getApplicationContext());
+                    processJSONStatusMsg(msg);
+
                 }
 
             }
@@ -356,6 +360,60 @@ public class MainC extends AppCompatActivity {
 
             }
         });
+    }
+
+    // TODO: document this function
+    void processJSONStatusMsg(String payload){
+
+        try {
+
+
+            JSONObject jsonObject = new JSONObject(payload);
+            String type = jsonObject.getString("type");
+
+            switch (type){
+                case "powerStatus":
+                    boolean isOn = jsonObject.getBoolean("powerOn");
+                    System.out.println("device powered:" + isOn);
+                    // do something else
+                    break;
+
+                case "wateringNow":
+                    System.out.println("watering now");
+                    // maybe do something
+                    break;
+
+                case "moistureSensor":
+                    String dryness = jsonObject.getString("Dryness");
+                    System.out.println("Dryness report: " + dryness);
+                    // maybe do something else
+                    break;
+
+                case "levelSensor":
+                    Integer waterLevel = jsonObject.getInt("waterLevel");
+                    if(waterLevel == -1){
+                        System.out.println("Invalid level, check sensors");
+                    } else {
+                        setupLvl(waterLevel.toString());
+                        saveLevelData(waterLevel.toString(), getApplicationContext());
+                    }
+
+                    break;
+
+                default:
+                    Log.e(TAG, "Invalid message received");
+
+            }
+
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+
+
+
+
     }
 
     /**
