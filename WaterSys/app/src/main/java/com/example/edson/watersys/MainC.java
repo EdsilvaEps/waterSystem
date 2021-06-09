@@ -94,9 +94,7 @@ public class MainC extends AppCompatActivity {
     String lastMsg = "";
     ArrayList<String> msgBuffer = new ArrayList<>();*/
 
-
     public static final String TAG = "MainActivity";
-
 
     ///private final static int REQUEST_ENABLE_BT = 1;
     //private Handler mHandler; // handler that gets info from Bluetooth service
@@ -107,9 +105,6 @@ public class MainC extends AppCompatActivity {
 
     private WebService webService;
     private String pendingMsg = "";
-
-
-
 
 
     @Override
@@ -160,16 +155,11 @@ public class MainC extends AppCompatActivity {
         //bottomNavigationView.setSelectedItemId(R.id.action_home);
         //bottomNavigationView.getMenu().getItem(R.id.action_home).setChecked(true);
 
-
-
-
-
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(
                 new NavigationView.OnNavigationItemSelectedListener() {
                     @Override
                     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-
 
                         System.out.println(item.getTitle());
                         // set item as selected to persist highlight
@@ -346,50 +336,35 @@ public class MainC extends AppCompatActivity {
                 //setConnectionStatus(true);
                 Log.d("mqtt", "message received: " + topic + ": " + message.toString());
                 // decodes and interprets received messages
+
+                String msg = new String(message.getPayload(), "UTF-8");
+                JSONObject jsonObject = new JSONObject(msg);
+                String type = jsonObject.getString("type");
+
                 if(topic.equals(Constants.ping_path)){
-                    String msg = new String(message.getPayload(), "UTF-8");
-                    processJSONStatusMsg(msg);
+
+                    switch (type){
+                        case "wateringNow":
+                            System.out.println("watering now");
+                            // maybe do something
+                            break;
+
+                        case "moistureSensor":
+                            String dryness = jsonObject.getString("Dryness");
+                            System.out.println("Dryness report: " + dryness);
+                            // maybe do something else
+                            break;
+
+                        default:
+                            Log.e(TAG, "Invalid message received");
+                    }
+
+
 
                 }
 
-            }
+                if(topic.equals(Constants.level_route) && type.equals("levelSensor")){
 
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {
-                Toast.makeText(getApplicationContext(), "control message sent to server", Toast.LENGTH_SHORT).show();
-
-            }
-        });
-    }
-
-    // TODO: document this function
-    void processJSONStatusMsg(String payload){
-
-        try {
-
-
-            JSONObject jsonObject = new JSONObject(payload);
-            String type = jsonObject.getString("type");
-
-            switch (type){
-                case "powerStatus":
-                    boolean isOn = jsonObject.getBoolean("powerOn");
-                    System.out.println("device powered:" + isOn);
-                    // do something else
-                    break;
-
-                case "wateringNow":
-                    System.out.println("watering now");
-                    // maybe do something
-                    break;
-
-                case "moistureSensor":
-                    String dryness = jsonObject.getString("Dryness");
-                    System.out.println("Dryness report: " + dryness);
-                    // maybe do something else
-                    break;
-
-                case "levelSensor":
                     Integer waterLevel = jsonObject.getInt("waterLevel");
                     if(waterLevel == -1){
                         System.out.println("Invalid level, check sensors");
@@ -398,29 +373,32 @@ public class MainC extends AppCompatActivity {
                         saveLevelData(waterLevel.toString(), getApplicationContext());
                     }
 
-                    break;
+                }
 
-                default:
-                    Log.e(TAG, "Invalid message received");
+                if(topic.equals(Constants.power_route) && type.equals("powerStatus")){
+                    boolean isOn = jsonObject.getBoolean("powerOn");
+                    System.out.println("device powered:" + isOn);
+                    setConnectionStatus(isOn);
+
+
+                }
 
             }
 
+            @Override
+            public void deliveryComplete(IMqttDeliveryToken token) {
+                //Toast.makeText(getApplicationContext(), "control message sent to server", Toast.LENGTH_SHORT).show();
 
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-
-
-
-
+            }
+        });
     }
+
 
     /**
      * change the UI according to the connection status
      * @param //isConnected
      */
-    /*public void setConnectionStatus(Boolean isConnected){
+    public void setConnectionStatus(Boolean isConnected){
         if (isConnected){
             connectionStatusTxt.setText(getText(R.string.status_connected_txt));
             connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(), R.color.connected));
@@ -434,7 +412,7 @@ public class MainC extends AppCompatActivity {
         }
 
 
-    }*/
+    }
 
 
     // basically saves level data

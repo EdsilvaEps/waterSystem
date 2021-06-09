@@ -22,6 +22,6 @@
     <string name="level_prefs">level_prefs</string>
     <string name="level_amount">level_amount</string>
     <string name="change_default_plan_intent">com.example.edson.CHANGE_DEFAULT_PLAN</string>7
-    <string name="status_connected_txt">Connected</string>
-    <string name="status_notconnected_txt">You are not connected</string>
+    <string name="status_connected_txt">System is online!</string>
+    <string name="status_notconnected_txt">System is offiline</string>
 </resources>

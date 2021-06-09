@@ -16,7 +16,8 @@ public interface Constants {
     String change_program = "netosilvan78@gmail.com/system/hardware/setupProgram";
     String ping_path = "netosilvan78@gmail.com/system/ping";
     String report = "system/report";
-    String level_route = "netosilvan78@gmail.com/system/hardware/level";
+    String power_route = "netosilvan78@gmail.com/power";
+    String level_route = "netosilvan78@gmail.com/system/hardware/temp";
     public static final String DATABASE_NAME = "plansinfo";
 
 

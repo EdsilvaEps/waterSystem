@@ -58,6 +58,8 @@ public class WebService {
 
     final String TOPIC_1 = Constants.ping_path;
     final String TOPIC_2 = Constants.dispense_water_route;
+    final String TOPIC_3 = Constants.power_route;
+    final String TOPIC_4 = Constants.level_route;
 
     private boolean secureConnection = false;
 
@@ -151,6 +153,9 @@ public class WebService {
                     Log.d("mqtt:", "connected, token:" + asyncActionToken.toString());
                     subscribe(TOPIC_1, (byte) 1);
                     subscribe(TOPIC_2, (byte) 1);
+                    subscribe(TOPIC_3, (byte) 1);
+                    subscribe(TOPIC_4, (byte) 1);
+
 
 
 
