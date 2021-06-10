@@ -79,10 +79,14 @@ int serverLed = 25;
 int countingLed = 33;
 int dataLed = 32;
 
+int apBtn = 35;
 // pump pin
 int pumpPin = 12;
 
 // ******* SOFT AP VARIABLES **************
+// variable to determine if an ap connection is requested
+// should be set using an interruption.
+bool startAp = false; 
 const char* softApSSID = "ed_system";
 const char *softApPWD = "riptide";
 IPAddress ipAddr;
@@ -159,7 +163,7 @@ int attemptsAtScheduling = 0;
 
 WateringProgram wprogram;
 
-int soilSensorPower = 35; // GPIO 35
+//int soilSensorPower = 35; // GPIO 35
 int soilSensorPin = 34; // GPIO 34 (Analog ADC1_CH6) 
 int drySoilThreshold = 3800;
 int soilHumidity = 0;
@@ -185,6 +189,12 @@ void IRAM_ATTR onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
+// interruption to enable start of ap
+void IRAM_ATTR toggleAp(){
+  startAp = true;
+  
+}
+
 
 void setup() {
     // put your setup code here, to run once:
@@ -195,7 +205,7 @@ void setup() {
     //pinMode(LED_BUILTIN, OUTPUT);
     pinMode(pumpPin, OUTPUT);
     pinMode(soilSensorPin, INPUT);
-    pinMode(soilSensorPower, OUTPUT);
+    //pinMode(soilSensorPower, OUTPUT);
 
     // configuring level sensor pins
     pinMode(level1, INPUT);
@@ -205,6 +215,9 @@ void setup() {
     pinMode(dataLed, OUTPUT);
     pinMode(serverLed, OUTPUT);
     pinMode(countingLed, OUTPUT);
+
+    pinMode(apBtn, INPUT);
+    attachInterrupt(apBtn, toggleAp, RISING);
 
 
     // catching and logging different wifi events
@@ -243,7 +256,7 @@ void setup() {
     // try to connect to the network 
     connectToSavedNetwork();
 
-    if(!isConnected()){
+    if(!isConnected() && startAp){
       delay(1000);
       scanNets();
       createSoftApConnection();
@@ -270,34 +283,35 @@ void loop() {
   switch(state){
 
     case CHECK_CONNECTION_STATE:
-      //Serial.println("check connection state");
       if(isConnected()){
         
         state = TIME_CHECK_STATE;
         //Serial.println("WiFi conectado! Verificando proximas tarefas.");
         break;
       } 
+
+      // if we are requested to create a soft ap for network config
+      if(startAp){
+        state = SELECT_NETWORKS_STATE;
+      }
       
       else {
 
-        state = SELECT_NETWORKS_STATE;
-        //if(!connectToSavedNetwork()){
-        //  Serial.println("WiFi não conectado! Vamos tentar outra rede");
-        //  state = SELECT_NETWORKS_STATE;
-          //scanNets(); 
-        //}
+        // try to reconnect to network
+        connectToSavedNetwork();
+
           
       }
       break;
 
     case SELECT_NETWORKS_STATE:
-    
+
       // create soft ap connection
       // for selection of network
-      createSoftApConnection();
+      createSoftApConnection(); 
       if(sendInfo){ // this could be solved with posix
-        exportInfo(); 
-        sendInfo = false;
+          exportInfo(); 
+          sendInfo = false;
       }
 
       // process user selected network.
@@ -447,13 +461,6 @@ void checkWaterLevel(){
   l2 = digitalRead(level2);
   l3 = digitalRead(level3); // this one works
   
-  //Serial.print("Level 1: ");
-  //Serial.println(l2);
-  //Serial.print("Level 2: ");
-  //Serial.println(l2);
-  //Serial.print("Level 3: ");
-  //Serial.println(l3);
-  
 
   if(l1) absLevel = 30;
   if(l2 && l1) absLevel = 50;
@@ -504,7 +511,7 @@ void broadcastWaterLevel(){
   Serial.println("Sending status msg:");
   Serial.println(msgToSend);
   Serial.println("");
-  publishMsg(pingPath,msgToSend);
+  publishAndRetainMsg(publishTempPath,msgToSend);
   
 }
 
@@ -580,6 +587,7 @@ void endSoftApConnection(){
   server.end(); // end server connection
   WiFi.softAPdisconnect(); // remove AP server
   isSoftApConnected = false;
+  startAp = false;
 }
 
 /*
@@ -719,7 +727,7 @@ bool isMinute5Multiple(){
    (test the threshold values with sensor inside plant */
 bool isSoilDry(){
 
-  digitalWrite(soilSensorPower, HIGH);
+  //digitalWrite(soilSensorPower, HIGH);
   delay(500);
   soilHumidity = analogRead(soilSensorPin);
   lastSoilMCheckedMinute = timeClient.getMinutes();
@@ -737,7 +745,7 @@ bool isSoilDry(){
     return false;
   }
 
-  digitalWrite(soilSensorPower, LOW);
+  //digitalWrite(soilSensorPower, LOW);
   
 
 }
@@ -989,6 +997,28 @@ bool publishMsg(const char* path, const char* msg){
   
 }
 
+// publish a retained msg
+bool publishAndRetainMsg(const char* path, const char* msg){
+
+  if(client.connected()){
+
+    client.publish(path, msg, true);
+    Serial.print("Mensagem enviada e retida: ");
+    Serial.println(msg);
+    Serial.print("Para: ");
+    Serial.println(path);
+    return true;
+  }
+
+  else{
+
+    Serial.println("cliente não conectado");
+    return false;
+    
+  }
+
+  
+}
 
 
 
@@ -1253,8 +1283,6 @@ void checkNetStatus(){
       conncted = false;
       //digitalWrite(LED_BUILTIN, LOW); // uncomment if we are on ESP32 DOIT
       
-
-
 
     }
     
