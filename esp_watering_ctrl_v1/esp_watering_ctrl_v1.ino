@@ -45,24 +45,24 @@ bool conncted = false;
 // certificado para acesso usando TLS
 const char* ca_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
-"MIIDPzCCAicCFAgB/9E66qY666QwZU3U+uX/sk7QMA0GCSqGSIb3DQEBCwUAMFwx\n" \
-"CzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl\n" \
-"cm5ldCBXaWRnaXRzIFB0eSBMdGQxFTATBgNVBAMMDG1hcWlhdHRvLmNvbTAeFw0y\n" \
-"MDA1MDMxNTU4NTZaFw0yMTA0MjgxNTU4NTZaMFwxCzAJBgNVBAYTAkFVMRMwEQYD\n" \
-"VQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBM\n" \
-"dGQxFTATBgNVBAMMDG1hcWlhdHRvLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP\n" \
-"ADCCAQoCggEBAPQUxGPAcCiAhIDvNWGh2UFhtVAEu9JiadWRzBPaWgwePvFfHtNN\n" \
-"isiqLpPB39+IsOEaya9W6izpF9dNdEsLZX0oKKv1JzBYFuBskQOb4oLqEOztnxf7\n" \
-"jq15mYTpim/6rL6d4VzwfHDH02TxBgM8cVPPJIjN8qfymWXB1Rb8phT6q1wT8tey\n" \
-"TgOHwm8BmCk+7UX6j5gT9LB5nDCZOmjcK9m/wYE9xQBmxevGbYlFt5woXjpE+BTa\n" \
-"DeXVZMum5gqkJ1CvviwoNkFbAUJ5e619gGJfL2HOre7ckHPLRjplCWacNb6eHe3R\n" \
-"0tZFNaDphGL8hyUnPK+CnFG+B4d7JqKliq8CAwEAATANBgkqhkiG9w0BAQsFAAOC\n" \
-"AQEAA+V0DyO/RDqCEWBrPDByEzNSharBL/ig8Mr9z+AoU0dLmmb8kwpPO1hJUTdh\n" \
-"uARNHg8HyeoHlPqEDlfP2+KDqvHZmWRx5GSBHMPFYvaDLk9237nueEmTPM3cdVFh\n" \
-"ZQPI7gwlYxO6hvqtHpHb4erOLXpQSHl06tE75akM0BS9ve1t0rvDBk/YbB7sIUei\n" \
-"30NF8LdIgDZPBDOPvGRvXm3ib20S8fkHTgNMEsGuPjrk41glH6nONlDzQ+8NbXwo\n" \
-"B9AWDQG54xUYDpOwM/LTRdvYfFMH9+U8nXCRO+xD89R80BQkeFz9On5tf6y2D8Pl\n" \
-"79gL077l7yk/UUsZukhkpzFnrg==\n" \
+"MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/\n" \
+"MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n" \
+"DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow\n" \
+"PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD\n" \
+"Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\n" \
+"AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O\n" \
+"rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq\n" \
+"OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b\n" \
+"xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw\n" \
+"7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD\n" \
+"aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV\n" \
+"HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG\n" \
+"SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69\n" \
+"ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr\n" \
+"AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz\n" \
+"R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5\n" \
+"JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo\n" \
+"Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ\n" \
 "-----END CERTIFICATE-----\n";
 
 
@@ -101,9 +101,9 @@ bool sendInfo = false;
 // *******/SOFT AP VARIABLES **************
 
 // ******* MQTT VARIABLEs *****************
-bool secureConnect = false;
+bool secureConnect = true;
 // mqtt broker currently running on maqiatto
-const char* mqttServer = "maqiatto.com";
+/*const char* mqttServer = "maqiatto.com";
 const int mqttPort= 1883; // tcp port 
 const int secureMqttPort= 3883; // tls port
 const char* mqttUser = "netosilvan78@gmail.com";
@@ -118,15 +118,35 @@ const char* publishReqNextSchedule = "netosilvan78@gmail.com/system/hardware/nex
 const char* setupWateringProgram = "netosilvan78@gmail.com/system/hardware/setupProgram";
 const char* publishReport = "netosilvan78@gmail.com/system/report";
 const char* pingPath = "netosilvan78@gmail.com/system/ping";
-const char* powerPath = "netosilvan78@gmail.com/power";
+const char* powerPath = "netosilvan78@gmail.com/power"; */
+
+// credentials for HiveMq
+const char* mqttServer = "59082674fbc44d0b95579ca81e3201a2.s1.eu.hivemq.cloud";
+const int mqttPort= 1883; // tcp port 
+const int secureMqttPort= 8883; // tls port
+const char* mqttUser = "avalon";
+const char* mqttPassword = "WZ71o80U6PzG";
+
+const char* subscribeCtrlPath = "system/control/dispenseWater";
+const char* subscribeTimingPath = "system/api/timing";
+const char* subscribeAmountPath = "system/app/amount";
+const char* publishTempPath = "system/hardware/temp";
+const char* publishLevelPath = "system/hardware/level";
+const char* publishReqNextSchedule = "system/hardware/nextWSchedule";
+const char* setupWateringProgram = "system/hardware/setupProgram";
+const char* publishReport = "system/report";
+const char* pingPath = "system/ping";
+const char* powerPath = "system/power";
+
+
 
 const char* wateredMessage = "JUST_WATERED";
 const char* lowLvMessage = "LOW_WATER";
 
 //#ifdef SECURE_CONNECTION
-//WiFiClientSecure espClient;
+WiFiClientSecure espClient;
 //#else
-WiFiClient espClient;
+//WiFiClient espClient;
 //#endif
 
 PubSubClient client(espClient);
@@ -1130,10 +1150,12 @@ bool reconnectToBroker(){
 
   Serial.print("Tentando conexão com o broker ");
   if(secureConnect){
-    //espClient.setCACert(ca_cert);
-    //client.setServer(mqttServer, secureMqttPort);
-    //Serial.print("(TLS) ");
-    //mqttPortInfo = secureMqttPort;
+    Serial.println("ca cert");
+    Serial.println(ca_cert);
+    espClient.setCACert(ca_cert);
+    client.setServer(mqttServer, secureMqttPort);
+    Serial.print("(TLS) ");
+    mqttPortInfo = secureMqttPort;
   } 
   else{
     client.setServer(mqttServer, mqttPort);
