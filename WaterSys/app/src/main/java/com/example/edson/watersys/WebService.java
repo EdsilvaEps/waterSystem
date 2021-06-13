@@ -1,6 +1,8 @@
 package com.example.edson.watersys;
 
 import android.content.Context;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 
@@ -14,21 +16,12 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
-import org.eclipse.paho.client.mqttv3.internal.wire.MqttConnect;
 
 import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.security.Key;
-import java.security.KeyManagementException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.Security;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
@@ -36,7 +29,16 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-public class WebService {
+import com.hivemq.client.mqtt.MqttClient;
+import com.hivemq.client.mqtt.datatypes.MqttQos;
+import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient;
+
+import static com.hivemq.client.mqtt.MqttGlobalPublishFilter.ALL;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+
+
+public class WebService  {
 
     // source for TLS implementation:
     // https://github.com/eurbon/Paho-MQTT-Android-TCP-TLS-WSS-Example/
@@ -52,6 +54,12 @@ public class WebService {
     private Integer qos;
     private boolean retain; // retain message on the broker or not
 
+    //--------------------- HIVE MQ CREDENTIALS -------------------------
+
+    final String host = "59082674fbc44d0b95579ca81e3201a2.s1.eu.hivemq.cloud";
+    final String username = "avalon";
+    final String password = "WZ71o80U6PzG";
+    Mqtt5BlockingClient client;
 
     // TODO: eventually, at some point, maybe, create a settings page to change those data below
     public static final String CLIENT_ID = "waterSysApp";
@@ -63,8 +71,20 @@ public class WebService {
 
     private boolean secureConnection = false;
 
+    public WebService() throws Exception{
+
+        this.client = MqttClient.builder()
+                .useMqttVersion5()
+                .serverHost(host)
+                .serverPort(8883)
+                .sslWithDefaultConfig()
+                .buildBlocking();
 
 
+    }
+
+
+    // Hive MQTT connection
     public WebService(Context context){
 
         this.qos = 0;
@@ -98,6 +118,47 @@ public class WebService {
         });
 
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    public void connect(){
+
+        this.client.connectWith()
+                .simpleAuth()
+                .username(this.username)
+                .password(UTF_8.encode(password))
+                .applySimpleAuth()
+                .send();
+
+        Log.d("mqtt", "Connected successfully: " + this.client.getState().toString());
+
+        //TODO: check if i can do that
+        this.client.subscribeWith()
+                .topicFilter(TOPIC_1)
+                .topicFilter(TOPIC_2)
+                .topicFilter(TOPIC_3)
+                .topicFilter(TOPIC_4)
+                .send();
+
+    }
+
+    public void publish(String topic, String msg, int qos, Boolean retain){
+        Log.d("mqqt: ", "sending msg " + msg + " with qos: " + qos  + " to " + topic);
+
+        client.publishWith()
+                .topic(topic)
+                .payload(UTF_8.encode(msg))
+                .qos(MqttQos.fromCode(qos))
+                .retain(retain)
+                .send();
+
+    }
+
+    public boolean isConnected(){
+
+        return this.client.getState().isConnected();
+    }
+
+
 
     public void setCallback(MqttCallbackExtended callback) {
         mqttAndroidClient.setCallback(callback);
@@ -209,7 +270,7 @@ public class WebService {
     }
 
 
-    void publish(String topic, String msg){
+    /*void publish(String topic, String msg){
 
         // qos 0
         Log.d("mqqt: ", "sending msg " + msg + " with qos: " + this.qos  + " to " + topic);
@@ -230,29 +291,29 @@ public class WebService {
             e.printStackTrace();
         }
 
-    }
+    }*/
 
     public void publishToTopic(final String topic, Integer qos, String message){
         this.qos = qos;
         if (message.equals(Constants.dispense_water_route)) this.retain = false;
-        publish(topic, message);
+        //publish(topic, message);
+        publish(topic, message, qos, false);
     }
 
     public void publishToTopic(final String topic, Integer qos, String message, Boolean retain){
         this.qos = qos;
         this.retain = retain;
-        publish(topic, message);
+        //publish(topic, message);
+        publish(topic, message, qos, retain);
     }
 
-
-    public boolean isConnected(){
-
-        return mqttAndroidClient.isConnected();
-    }
 
 
     void disconnect() {
-        try {
+
+        this.client.disconnect();
+
+        /*try {
             IMqttToken disconToken = mqttAndroidClient.disconnect();
             disconToken.setActionCallback(new IMqttActionListener() {
                 @Override
@@ -270,7 +331,7 @@ public class WebService {
             });
         } catch (MqttException e) {
             e.printStackTrace();
-        }
+        }*/
 
     }
 

@@ -9,15 +9,15 @@ import java.util.List;
 public interface Constants {
 
     // MQTT route constants
-    public static final String dispense_water_route = "netosilvan78@gmail.com/system/control/dispenseWater";
+    public static final String dispense_water_route = "system/control/dispenseWater";
     //public static final String schedule_route = "system/app/timing";
     //public static final String amount_route = "system/app/amount";
     //public static final String days_route = "system/app/days";
-    String change_program = "netosilvan78@gmail.com/system/hardware/setupProgram";
-    String ping_path = "netosilvan78@gmail.com/system/ping";
+    String change_program = "system/hardware/setupProgram";
+    String ping_path = "system/ping";
     String report = "system/report";
-    String power_route = "netosilvan78@gmail.com/power";
-    String level_route = "netosilvan78@gmail.com/system/hardware/temp";
+    String power_route = "system/power";
+    String level_route = "system/hardware/temp";
     public static final String DATABASE_NAME = "plansinfo";
 
 

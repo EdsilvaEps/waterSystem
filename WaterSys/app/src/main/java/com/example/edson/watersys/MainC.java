@@ -41,6 +41,7 @@ import android.support.v7.widget.Toolbar;
 
 import com.example.edson.watersys.database.DBHadler;
 import com.example.edson.watersys.objs.WateringPlan;
+import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -62,6 +63,7 @@ import static android.graphics.Color.BLACK;
 import static android.graphics.Color.GRAY;
 import static android.graphics.Color.GREEN;
 import static android.graphics.Color.RED;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class MainC extends AppCompatActivity {
     private static final String ROOT_FRAG_TAG = "root_fragment";
@@ -107,6 +109,7 @@ public class MainC extends AppCompatActivity {
     private String pendingMsg = "";
 
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -312,10 +315,79 @@ public class MainC extends AppCompatActivity {
     /**
      * Initializes the mqtt service on the main activity context
      */
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private void startMqtt() {
         // initializing our web service mqtt and setting callbacks
-        webService = new WebService(getApplicationContext());
-        webService.setCallback(new MqttCallbackExtended() {
+        try {
+            webService = new WebService();
+            webService.connect();
+
+            webService.client.toAsync().publishes(MqttGlobalPublishFilter.ALL, mqtt5Publish -> {
+                String topic = mqtt5Publish.getTopic().toString();
+                String msg = UTF_8.decode(mqtt5Publish.getPayload().get()).toString();
+
+                Log.d("mqtt", "Received message: " +  topic + " -> " + msg);
+
+                JSONObject jsonObject = null;
+                try {
+                    jsonObject = new JSONObject(msg);
+                    String type = jsonObject.getString("type");
+
+                    if(topic.equals(Constants.ping_path)){
+
+                        switch (type){
+                            case "wateringNow":
+                                System.out.println("watering now");
+                                // maybe do something
+                                break;
+
+                            case "moistureSensor":
+                                String dryness = jsonObject.getString("Dryness");
+                                System.out.println("Dryness report: " + dryness);
+                                // maybe do something else
+                                break;
+
+                            default:
+                                Log.e(TAG, "Invalid message received");
+                        }
+
+
+
+                    }
+
+                    if(topic.equals(Constants.level_route) && type.equals("levelSensor")){
+
+                        Integer waterLevel = jsonObject.getInt("waterLevel");
+                        if(waterLevel == -1){
+                            System.out.println("Invalid level, check sensors");
+                        } else {
+                            setupLvl(waterLevel.toString());
+                            saveLevelData(waterLevel.toString(), getApplicationContext());
+                        }
+
+                    }
+
+                    if(topic.equals(Constants.power_route) && type.equals("powerStatus")){
+                        boolean isOn = jsonObject.getBoolean("powerOn");
+                        System.out.println("device powered:" + isOn);
+                        setConnectionStatus(isOn);
+
+
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        //webService = new WebService(getApplicationContext());
+        /*webService.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
                 //setConnectionStatus(true);
@@ -390,7 +462,8 @@ public class MainC extends AppCompatActivity {
                 //Toast.makeText(getApplicationContext(), "control message sent to server", Toast.LENGTH_SHORT).show();
 
             }
-        });
+        }); */
+
     }
 
 
@@ -431,6 +504,7 @@ public class MainC extends AppCompatActivity {
     /** Changes the user interface to show the currently selected plan
      *
      */
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void setupCurrentPlanUI(){
         plans = db.getAllPlans();
 
@@ -507,6 +581,7 @@ public class MainC extends AppCompatActivity {
      * function to be called upon connection to broker
      * for resolving pending messages
      */
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void pendingMsgHander(){
         Log.e(TAG, "checking pending messages: " + pendingMsg);
         if(pendingMsg.equals(Constants.dispense_water_route)){
