@@ -27,6 +27,7 @@ import android.widget.Toast;
 import com.example.edson.watersys.adapters.PlanSelectionAdapter;
 import com.example.edson.watersys.database.DBHadler;
 import com.example.edson.watersys.objs.WateringPlan;
+import com.hivemq.client.mqtt.exceptions.MqttClientStateException;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -89,7 +90,14 @@ public class PlanSelectionFragment extends Fragment {
 
         db = new DBHadler(getContext());
         plans = db.getAllPlans();
-        webService = new WebService(getContext());
+        //webService = new WebService(getContext());
+
+        try{
+            webService = new WebService();
+
+        } catch (MqttClientStateException e){
+            e.printStackTrace();
+        }
 
 
     }
@@ -126,7 +134,7 @@ public class PlanSelectionFragment extends Fragment {
         mRecyclerView.setLayoutManager(layoutManager);
 
         activeChanged(); // checks the currently active watering plan
-        startMqtt();
+        if(!webService.isConnected()) startMqtt();
 
 
         try{
@@ -303,8 +311,10 @@ public class PlanSelectionFragment extends Fragment {
      */
     private void startMqtt() {
         // initializing our web service mqtt and setting callbacks
-        webService = new WebService(getContext());
-        webService.setCallback(new MqttCallbackExtended() {
+        //webService = new WebService();
+        webService.connect();
+
+        /*webService.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
                 pendingMsgHander(); // check if there are pending messages to be sent
@@ -326,14 +336,14 @@ public class PlanSelectionFragment extends Fragment {
                 Toast.makeText(getContext(), "control message sent to server", Toast.LENGTH_SHORT).show();
 
             }
-        });
+        });*/
     }
 
     /**
      * function to be called upon connection to broker
      * for resolving pending messages
      */
-    public void pendingMsgHander(){
+    /*public void pendingMsgHander(){
         Log.e(TAG, "checking pending messages: " + pendingMsg);
         if(pendingMsg.equals(Constants.dispense_water_route)){
             webService.publishToTopic(Constants.dispense_water_route, 0, "1");
@@ -347,5 +357,5 @@ public class PlanSelectionFragment extends Fragment {
 
 
 
-    }
+    }*/
 }

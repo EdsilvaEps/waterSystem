@@ -211,8 +211,7 @@ void IRAM_ATTR onTimer() {
 
 // interruption to enable start of ap
 void IRAM_ATTR toggleAp(){
-  startAp = true;
-  
+  startAp = true;  
 }
 
 
@@ -237,7 +236,7 @@ void setup() {
     pinMode(countingLed, OUTPUT);
 
     pinMode(apBtn, INPUT);
-    attachInterrupt(apBtn, toggleAp, RISING);
+    attachInterrupt(apBtn, toggleAp, FALLING);
 
 
     // catching and logging different wifi events
@@ -303,6 +302,7 @@ void loop() {
   switch(state){
 
     case CHECK_CONNECTION_STATE:
+    
       if(isConnected()){
         
         state = TIME_CHECK_STATE;
@@ -311,9 +311,11 @@ void loop() {
       } 
 
       // if we are requested to create a soft ap for network config
-      if(startAp){
-        state = SELECT_NETWORKS_STATE;
+      if( startAp){
+        //state = SELECT_NETWORKS_STATE;
+        break;
       }
+      
       
       else {
 
@@ -415,7 +417,7 @@ void loop() {
       */
       currMins = timeClient.getMinutes();
       // we only check soil moisture in 5 minutes intervals
-      if(wprogram.automaticWatering == true && currMins != lastSoilMCheckedMinute && isMinute5Multiple()){
+      if(wprogram.automaticWatering == true && currMins != lastSoilMCheckedMinute && checkInterval()){
         // if soil is dry and plants havent been watered in the current hour
         Serial.println("soil humidity checking");
         if(isSoilDry() && (getLastWateredStatus() != timeClient.getHours())){
@@ -477,9 +479,9 @@ void checkWaterLevel(){
   int absLevel = 0; // local level
 
   int l1, l2, l3;
-  l1 = digitalRead(level1);
-  l2 = digitalRead(level2);
-  l3 = digitalRead(level3); // this one works
+  l1 =  digitalRead(level1);
+  l2 =  digitalRead(level2);
+  l3 =  digitalRead(level3); 
   
 
   if(l1) absLevel = 30;
@@ -567,6 +569,8 @@ void createSoftApConnection(){
     return;
     
   } else{
+
+    disconnection(); // disconnects from wifi before opening soft ap
     //scanNets();
     Serial.println("opening soft connection");
 
@@ -737,9 +741,9 @@ String translateEncryptionType(wifi_auth_mode_t encryptionType) {
 //******************/OFFLINE INTERFACE *********************
 
 //****************** MOISTURE SENSOR ***********************
-// is the current minute a multiple of five?
-bool isMinute5Multiple(){
-  return (timeClient.getMinutes() % 5 == 0) ;
+// is the current minute a multiple of thirty? (Half an hour checks)
+bool checkInterval(){
+  return (timeClient.getMinutes() % 30 == 0) ;
 }
 
 
@@ -1278,6 +1282,8 @@ bool connectedAfterTimeout(String net, String pwd){
       
      Serial.print("Connectado com a rede ");
      Serial.println(net);
+     Serial.print("IP: ");
+     Serial.println(WiFi.localIP());
 
      saveCredentials(net, pwd); // if connection successful, save details to memory
      return true;

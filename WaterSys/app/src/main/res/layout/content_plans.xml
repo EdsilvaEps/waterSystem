@@ -50,7 +50,7 @@
                     app:layout_constraintLeft_toLeftOf="parent"
                     app:layout_constraintRight_toRightOf="parent"
                     app:layout_constraintHorizontal_bias="0.2"
-                    android:text="You are not connected to the server"/>
+                    android:text="System not connected"/>
 
                 <ImageView
                     android:layout_width="20dp"

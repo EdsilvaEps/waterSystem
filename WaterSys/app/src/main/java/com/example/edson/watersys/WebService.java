@@ -71,7 +71,8 @@ public class WebService  {
 
     private boolean secureConnection = false;
 
-    public WebService() throws Exception{
+    public WebService(){
+
 
         this.client = MqttClient.builder()
                 .useMqttVersion5()

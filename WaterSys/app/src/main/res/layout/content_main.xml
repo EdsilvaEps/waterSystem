@@ -47,7 +47,7 @@
                     android:id="@+id/cardconnection_connectiontxt"
                     android:layout_width="wrap_content"
                     android:layout_height="15dp"
-                    android:text="You are not connected"
+                    android:text="System not connected"
                     android:textColor="@color/darkColor"
                     app:layout_constraintHorizontal_bias="0.2"
                     app:layout_constraintLeft_toLeftOf="parent"
@@ -233,7 +233,6 @@
     </android.support.v7.widget.CardView>
 
     <android.support.v7.widget.CardView
-        xmlns:card_view="http://schemas.android.com/apk/res-auto"
         android:layout_width="304dp"
         android:id="@+id/card2"
         android:layout_height="wrap_content"
@@ -245,8 +244,8 @@
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintVertical_bias="0.1"
-        card_view:cardCornerRadius="6dp"
-        card_view:cardElevation="4dp"
+        app:cardCornerRadius="6dp"
+        app:cardElevation="4dp"
         >
 
         <FrameLayout
@@ -263,9 +262,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@color/colorPrimary"
-                android:id="@+id/myconstLayout_card2"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                xmlns:tools="http://schemas.android.com/tools">
+                android:id="@+id/myconstLayout_card2">
 
                 <TextView
                     android:id="@+id/card2_txt1"
@@ -321,17 +318,17 @@
                     app:layout_constraintLeft_toRightOf="@id/tank_img"
                     app:layout_constraintRight_toLeftOf="@id/card2_dealinetxt"
                     app:layout_constraintTop_toBottomOf="@id/card2_txt2"
-                    android:text=" Empty in: "/>
+                    android:text=" Humidity: "/>
 
                 <TextView
                     android:id="@+id/card2_dealinetxt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="40dp"
+                    android:layout_height="21dp"
+                    android:text="null"
                     android:textColor="@color/darkColor"
-                    app:layout_constraintTop_toBottomOf="@id/card2_txt2"
                     app:layout_constraintLeft_toRightOf="@id/card2_txt3"
                     app:layout_constraintRight_toLeftOf="parent"
-                    android:text="1 day"/>
+                    app:layout_constraintTop_toBottomOf="@id/card2_txt2" />
 
 
 
