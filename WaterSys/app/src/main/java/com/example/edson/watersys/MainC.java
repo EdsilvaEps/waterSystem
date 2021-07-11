@@ -246,35 +246,41 @@ public class MainC extends AppCompatActivity {
     // sets up the level card
     public void setupLvl(String lvl){
 
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
 
-        switch (lvl){
-            case "0":
-                tank_img.setImageResource(R.mipmap.tank_5_percent_fg);
-                level_txt.setText("under 5%");
-                break;
-            case "30":
-                tank_img.setImageResource(R.mipmap.tank20pcent_fg);
-                level_txt.setText("around 30%");
-                break;
+                switch (lvl){
+                    case "0":
+                        tank_img.setImageResource(R.mipmap.tank_5_percent_fg);
+                        level_txt.setText("under 5%");
+                        break;
+                    case "30":
+                        tank_img.setImageResource(R.mipmap.tank20pcent_fg);
+                        level_txt.setText("around 30%");
+                        break;
 
-            case "50":
-                tank_img.setImageResource(R.mipmap.tank50pcent_fg);
-                level_txt.setText("around 50%");
-                break;
+                    case "50":
+                        tank_img.setImageResource(R.mipmap.tank50pcent_fg);
+                        level_txt.setText("around 50%");
+                        break;
 
-            case "75":
-                tank_img.setImageResource(R.mipmap.tank70pcent_fg);
-                level_txt.setText("75% or above");
-                break;
+                    case "75":
+                        tank_img.setImageResource(R.mipmap.tank70pcent_fg);
+                        level_txt.setText("75% or above");
+                        break;
 
-            case "90":
-                tank_img.setImageResource(R.mipmap.tank90pcent_fg);
-                level_txt.setText("under 90%");
-                break;
+                    case "90":
+                        tank_img.setImageResource(R.mipmap.tank90pcent_fg);
+                        level_txt.setText("under 90%");
+                        break;
 
-            default: System.out.println("could not read message");
+                    default: System.out.println("could not read message");
 
-        }
+            }
+
+            }
+        });
 
 
 
@@ -357,20 +363,36 @@ public class MainC extends AppCompatActivity {
 
                     if(topic.equals(Constants.level_route) && type.equals("levelSensor")){
 
-                        Integer waterLevel = jsonObject.getInt("waterLevel");
-                        if(waterLevel == -1){
-                            System.out.println("Invalid level, check sensors");
-                        } else {
-                            setupLvl(waterLevel.toString());
-                            saveLevelData(waterLevel.toString(), getApplicationContext());
+                        try{
+
+                            Integer waterLevel = jsonObject.getInt("waterLevel");
+                            if(waterLevel == -1){
+                                System.out.println("Invalid level, check sensors");
+                            } else {
+                                setupLvl(waterLevel.toString());
+                                saveLevelData(waterLevel.toString(), getApplicationContext());
+                            }
+
+                        } catch (Exception e){
+                            e.printStackTrace();
                         }
+
+
 
                     }
 
                     if(topic.equals(Constants.power_route) && type.equals("powerStatus")){
-                        boolean isOn = jsonObject.getBoolean("powerOn");
-                        System.out.println("device powered:" + isOn);
-                        setConnectionStatus(isOn);
+
+                        try{
+
+                            boolean isOn = jsonObject.getBoolean("powerOn");
+                            System.out.println("device powered:" + isOn);
+                            setConnectionStatus(isOn);
+
+                        } catch (Exception e){
+                            e.printStackTrace();
+                        }
+
 
 
                     }
@@ -472,17 +494,30 @@ public class MainC extends AppCompatActivity {
      * @param //isConnected
      */
     public void setConnectionStatus(Boolean isConnected){
-        if (isConnected){
-            connectionStatusTxt.setText(getText(R.string.status_connected_txt));
-            connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(), R.color.connected));
 
-        }
+        // the method runOnUiThread is necessary due to the mqtt callback that call this function being an async task
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
 
-        else {
-            connectionStatusTxt.setText(getText(R.string.status_notconnected_txt));
-            connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(),R.color.reddish));
+                if (isConnected){
+                    connectionStatusTxt.setText(getText(R.string.status_connected_txt));
+                    connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(), R.color.connected));
 
-        }
+                }
+
+                else {
+                    connectionStatusTxt.setText(getText(R.string.status_notconnected_txt));
+                    connectionStautsIcon.setColorFilter(ContextCompat.getColor(getApplicationContext(),R.color.reddish));
+
+                }
+
+
+
+            }
+        });
+
+
 
 
     }

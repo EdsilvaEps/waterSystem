@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
+import android.widget.Toast;
 
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -24,6 +25,7 @@ import java.security.KeyStore;
 import java.security.Security;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.UUID;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -31,7 +33,11 @@ import javax.net.ssl.TrustManagerFactory;
 
 import com.hivemq.client.mqtt.MqttClient;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient;
+import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
+
+import timber.log.Timber;
 
 import static com.hivemq.client.mqtt.MqttGlobalPublishFilter.ALL;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -59,7 +65,7 @@ public class WebService  {
     final String host = "59082674fbc44d0b95579ca81e3201a2.s1.eu.hivemq.cloud";
     final String username = "avalon";
     final String password = "WZ71o80U6PzG";
-    Mqtt5BlockingClient client;
+    Mqtt3AsyncClient client;
 
     // TODO: eventually, at some point, maybe, create a settings page to change those data below
     public static final String CLIENT_ID = "waterSysApp";
@@ -75,18 +81,92 @@ public class WebService  {
 
 
         this.client = MqttClient.builder()
-                .useMqttVersion5()
+                .useMqttVersion3()
+                .identifier(UUID.randomUUID().toString())
                 .serverHost(host)
                 .serverPort(8883)
                 .sslWithDefaultConfig()
-                .buildBlocking();
+                .buildAsync();
+
+
 
 
     }
 
 
-    // Hive MQTT connection
-    public WebService(Context context){
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void connect(){
+
+        Log.d("mqtt", "Connecting and subscribing....");
+
+        this.client.connectWith()
+                .simpleAuth()
+                .username(this.username)
+                .password(UTF_8.encode(password))
+                .applySimpleAuth()
+                .send()
+                .whenComplete((connAck, throwable) -> {
+                    if (throwable != null) {
+                        Log.d("mqtt",  connAck.toString() + " : " + throwable.toString());
+                    // handle failure
+                    } else {
+                    // setup subscribes or start publishing
+
+                        Log.d("mqtt",  connAck.toString() + " : " + throwable.toString());
+                    }
+                });
+
+        Log.d("mqtt", "Connected successfully: " + this.client.getState().toString());
+
+        //TODO: check if i can do that
+        this.client.subscribeWith()
+                .topicFilter(TOPIC_1)
+                .send()
+                .whenComplete((subAck, throwable) -> {
+                    if (throwable != null) {
+                        // Handle failure to subscribe
+                        Log.d("mqtt", "couldnt subscribe to topics");
+                        Log.d("mqtt",  subAck.toString() + " : " + throwable.toString());
+                    } else {
+                        // Handle successful subscription, e.g. logging or incrementing a metric
+                        Log.d("mqtt", "subscribed successfully to topics");
+                        Log.d("mqtt",  subAck.toString() + " : " + throwable.toString());
+                    }
+                });
+
+        this.client.subscribeWith()
+                .topicFilter(TOPIC_4)
+                .send();
+
+        this.client.subscribeWith()
+                .topicFilter(TOPIC_3)
+                .send();
+
+        this.client.subscribeWith()
+                .topicFilter(TOPIC_2)
+                .send();
+
+    }
+
+    public void publish(String topic, String msg, int qos, Boolean retain){
+        Log.d("mqqt: ", "sending msg " + msg + " with qos: " + qos  + " to " + topic);
+
+        client.publishWith()
+                .topic(topic)
+                .payload(UTF_8.encode(msg))
+                .qos(MqttQos.fromCode(qos))
+                .retain(retain)
+                .send();
+
+    }
+
+    public boolean isConnected(){
+
+        return this.client.getState().isConnected();
+    }
+
+
+    /*public WebService(Context context){
 
         this.qos = 0;
         this.retain = false;
@@ -118,48 +198,7 @@ public class WebService  {
             }
         });
 
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    public void connect(){
-
-        this.client.connectWith()
-                .simpleAuth()
-                .username(this.username)
-                .password(UTF_8.encode(password))
-                .applySimpleAuth()
-                .send();
-
-        Log.d("mqtt", "Connected successfully: " + this.client.getState().toString());
-
-        //TODO: check if i can do that
-        this.client.subscribeWith()
-                .topicFilter(TOPIC_1)
-                .topicFilter(TOPIC_2)
-                .topicFilter(TOPIC_3)
-                .topicFilter(TOPIC_4)
-                .send();
-
-    }
-
-    public void publish(String topic, String msg, int qos, Boolean retain){
-        Log.d("mqqt: ", "sending msg " + msg + " with qos: " + qos  + " to " + topic);
-
-        client.publishWith()
-                .topic(topic)
-                .payload(UTF_8.encode(msg))
-                .qos(MqttQos.fromCode(qos))
-                .retain(retain)
-                .send();
-
-    }
-
-    public boolean isConnected(){
-
-        return this.client.getState().isConnected();
-    }
-
-
+    }*/
 
     public void setCallback(MqttCallbackExtended callback) {
         mqttAndroidClient.setCallback(callback);

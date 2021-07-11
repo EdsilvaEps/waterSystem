@@ -527,6 +527,7 @@ void broadcastWaterLevel(){
   //JsonObject& root = jsonMsg.createObject();
   root["type"] = "levelSensor";
   root["waterLevel"] = waterLevel;
+  root["lastWatered"] = getLastWateredStatus();
 
   char msgToSend[80];
   serializeJson(root, msgToSend);

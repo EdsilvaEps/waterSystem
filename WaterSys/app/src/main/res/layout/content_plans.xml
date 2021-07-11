@@ -32,6 +32,7 @@
             android:paddingLeft="5dp"
             android:paddingBottom="5dp"
             android:paddingTop="5dp"
+            android:visibility="gone"
             >
 
             <android.support.constraint.ConstraintLayout
@@ -41,16 +42,6 @@
                 android:id="@+id/myconstLayout_cardconnection"
                 xmlns:app="http://schemas.android.com/apk/res-auto"
                 xmlns:tools="http://schemas.android.com/tools">
-
-                <TextView
-                    android:id="@+id/cardconnection_connectiontxt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkColor"
-                    app:layout_constraintLeft_toLeftOf="parent"
-                    app:layout_constraintRight_toRightOf="parent"
-                    app:layout_constraintHorizontal_bias="0.2"
-                    android:text="System not connected"/>
 
                 <ImageView
                     android:layout_width="20dp"
