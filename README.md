@@ -1,8 +1,4 @@
 # waterSystem
 Arduino-based plant watering system
 
-Directories with very alike names:
-
-WaterSys -> android code
-
-wSystem -> arduino code
+Project for a microcontrolled and automatized watering system. My final thesis for the course of Computer Engineering at the Federal University of Amazonas.
