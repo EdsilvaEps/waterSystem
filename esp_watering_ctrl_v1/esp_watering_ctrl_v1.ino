@@ -139,7 +139,7 @@ const char* pingPath = "system/ping";
 const char* powerPath = "system/power";
 
 
-
+String deviceName = "unnamed-device";
 const char* wateredMessage = "JUST_WATERED";
 const char* lowLvMessage = "LOW_WATER";
 

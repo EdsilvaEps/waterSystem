@@ -1,7 +1,0 @@
-pinout changes 
-
-CAMERA -> ESP32
-
-WR -> RX0 
-WRST -> D18
-RRST -> D19

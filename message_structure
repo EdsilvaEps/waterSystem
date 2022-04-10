@@ -1,0 +1,38 @@
+Examples of different messages 
+
+
+VERSION 2: Define a name for the system, like, "eddieHouse" to append to the device ID
+
+Program messages:
+
+{device:"eddieHouse-1", "amountWater":1021,"gmtTimezone":-14400,"deadlineHour":18,"deadlineMinute":57,"deadlineSecond":0,"deadlineDays":[1, 2,3, 4, 5, 6,0], "automaticWatering":false}
+
+Sensor messages:
+
+{device:"eddieHouse-1", "type":"moistureSensor","lastWatered":18,"Dryness":1072}
+{device:"eddieHouse-1", "type":"levelSensor","lastWatered":18,"waterLevel":50}
+
+Power messages:
+
+{device:"eddieHouse-1", "type":"powerStatus","powerOn":true}
+
+Control messages:
+
+{device:"eddieHouse-1", type:"waterNow"}
+
+=================================================================
+VERSION 1:
+
+Program messages:
+
+{"amountWater":1021,"gmtTimezone":-14400,"deadlineHour":18,"deadlineMinute":57,"deadlineSecond":0,"deadlineDays":[1, 2,3, 4, 5, 6,0], "automaticWatering":false}
+
+Sensor messages:
+
+{"type":"moistureSensor","lastWatered":18,"Dryness":1072}
+{"type":"levelSensor","lastWatered":18,"waterLevel":50}
+
+Power messages:
+
+{"type":"powerStatus","powerOn":true}
+
